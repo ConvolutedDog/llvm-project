@@ -112,7 +112,11 @@ private:
     if (curLineBuffer.empty())
       return EOF;
     ++curCol;
+    // `.front()` returns a reference to the first character of the `StringRef`
+    // object.
     auto nextchar = curLineBuffer.front();
+    // `.drop_front()` returns a new `StringRef` object that excludes the first 
+    // character of the original `StringRef` object.
     curLineBuffer = curLineBuffer.drop_front();
     if (curLineBuffer.empty())
       curLineBuffer = readNextLine();
@@ -217,14 +221,33 @@ private:
   /// Provide one line at a time to the Lexer, return an empty string when
   /// reaching the end of the buffer.
   llvm::StringRef readNextLine() override {
+    // It will read one line at a time and return an empty string when the 
+    // end of the buffer is reached. `begin` holds the current position in 
+    // the buffer (the starting point for reading the next line).
     auto *begin = current;
+    // Loop that increments `current` while it is within the bounds of the 
+    // buffer and hasn't encountered a newline character ('\n'). This loop 
+    // continues until it finds either the end of the buffer or a newline 
+    // character.
     while (current <= end && *current && *current != '\n')
       ++current;
+    // Checks if `current` is still within the bounds of the buffer and if 
+    // the character at `current` is not null. If true, it increments the 
+    // `current` to move past the newline character. This effectively all-
+    // ows the reading of the next line to begin.
     if (current <= end && *current)
       ++current;
+    // Creates a `llvm::StringRef` object called `result`, initializing it 
+    // with a substring from the `begin` pointer to `current`. The length 
+    // of the substring is calculated as `current - begin`, representing 
+    // the last line read.
     llvm::StringRef result{begin, static_cast<size_t>(current - begin)};
     return result;
   }
+  /// Declares two private member variables: `current` (a pointer to the 
+  /// current position being read in the buffer) and `end` (a pointer to 
+  /// the end of the buffer). These are used to track the reading posi-
+  /// tion within the buffer.
   const char *current, *end;
 };
 } // namespace toy
