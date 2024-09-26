@@ -86,6 +86,14 @@ public:
       : ExprAST(Expr_Literal, std::move(loc)), values(std::move(values)),
         dims(std::move(dims)) {}
 
+  /// `llvm::ArrayRef` is a template class defined in the LLVM library that 
+  /// provides an unmodifiable (read-only) view of an array (fixed size or 
+  /// standard C++ container, such as std::vector). It does not own the arr-
+  /// ay or container it refers to, but simply provides a way to access arr-
+  /// ay elements and can be passed safely without worrying about performan-
+  /// ce overhead because it is usually passed by reference. `llvm::ArrayRef` 
+  /// can be seen as a lightweight wrapper around a pointer to an array and 
+  /// the size of the array.
   llvm::ArrayRef<std::unique_ptr<ExprAST>> getValues() { return values; }
   llvm::ArrayRef<int64_t> getDims() { return dims; }
 
