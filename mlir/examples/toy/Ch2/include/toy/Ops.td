@@ -13,6 +13,10 @@
 #ifndef TOY_OPS
 #define TOY_OPS
 
+/// The `mlir/IR/OpBase.td` file is used in MLIR projects to define and generate 
+/// code and data structures about the base of an operation, which includes the 
+/// attributes of the operation, its operands, its results, and any auxiliary 
+/// templates or classes that may be associated with it.
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
