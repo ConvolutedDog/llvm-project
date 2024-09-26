@@ -60,9 +60,14 @@ def ConstantOp : Toy_Op<"constant", [Pure]> {
   }];
 
   // The constant operation takes an attribute as the only input.
+  // `F64ElementsAttr` corresponds to a 64-bit floating-point ElementsAttr. By 
+  // providing a name to the arguments or results, e.g. `$value`, ODS will au-
+  // tomatically generate a matching accessor: DenseElementsAttr ConstantOp::
+  // value().
   let arguments = (ins F64ElementsAttr:$value);
 
   // The constant operation returns a single value of TensorType.
+  // F64Tensor corresponds to a 64-bit floating-point TensorType.
   let results = (outs F64Tensor);
 
   // Indicate that the operation has a custom parser and printer method.
@@ -71,6 +76,9 @@ def ConstantOp : Toy_Op<"constant", [Pure]> {
   // Add custom build methods for the constant operation. These method populates
   // the `state` that MLIR uses to create operations, i.e. these are used when
   // using `builder.create<ConstantOp>(...)`.
+  // This field takes a list of OpBuilder objects that take a string correspon-
+  // ding to a list of C++ parameters, as well as an optional code block that 
+  // can be used to specify the implementation inline.
   let builders = [
     // Build a constant with a given constant tensor value.
     OpBuilder<(ins "DenseElementsAttr":$value), [{
@@ -78,10 +86,21 @@ def ConstantOp : Toy_Op<"constant", [Pure]> {
     }]>,
 
     // Build a constant with a given constant floating-point value.
+    // This builder creates a declaration for `ConstantOp::build` with the given 
+    // parameters.
     OpBuilder<(ins "double":$value)>
   ];
 
   // Indicate that additional verification for this operation is necessary.
+  // Much like the named accessor, the ODS framework will automatically generate 
+  // a lot of the necessary verification logic based upon the constraints we have 
+  // given. This means that we don’t need to verify the structure of the return 
+  // type, or even the input attribute value. In many cases, additional verifica-
+  // tion is not even necessary for ODS operations. 
+  // To add additional verification logic, an operation can override the verifier 
+  // field. The verifier field allows for defining a C++ code blob that will be 
+  // run as part of `ConstantOp::verify`. This blob can assume that all of the 
+  // other invariants of the operation have already been verified:
   let hasVerifier = 1;
 }
 
