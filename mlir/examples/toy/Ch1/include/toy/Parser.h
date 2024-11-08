@@ -127,9 +127,16 @@ private:
 
     /// If there is any nested array, process all of them and ensure that
     /// dimensions are uniform.
+    /// Use `llvm::any_of` to check if any element in `values` is of type 
+    /// `LiteralExprAST`. If so, it means there are nested arrays.
+    /// `llvm::isa<LiteralExprAST>(expr.get())` is used to judge that whe-
+    /// ther the `expr.get()` points to an object of type `LiteralExprAST`.
     if (llvm::any_of(values, [](std::unique_ptr<ExprAST> &expr) {
           return llvm::isa<LiteralExprAST>(expr.get());
         })) {
+      // Use `llvm::dyn_cast` to try to convert the first element in va-
+      // lues ​​to `LiteralExprAST*`. If it fails, it means that the dimen-
+      // sion information is inconsistent and an error is returned.
       auto *firstLiteral = llvm::dyn_cast<LiteralExprAST>(values.front().get());
       if (!firstLiteral)
         return parseError<ExprAST>("uniform well-nested dimensions",
