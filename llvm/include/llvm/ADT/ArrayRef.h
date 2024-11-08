@@ -24,8 +24,19 @@
 #include <vector>
 
 namespace llvm {
+  // `[[nodiscard]]` 是一个 C++17 引入的属性，用于标记函数或返回类型，表示被标记的函
+  // 数返回的值不应该被忽略。对于类，它通常表示该类型的对象在创建后不应该未被使用就被丢
+  // 弃，这有助于防止诸如忘记处理返回值等编程错误。
   template<typename T> class [[nodiscard]] MutableArrayRef;
 
+  /// `ArrayRef` - 表示对数组的常量引用（内存中连续有 0 个或多个元素），即起始指针和
+  /// 长度。它允许各种 API 轻松方便地获取连续元素。
+  ///
+  /// 此类不拥有底层数据，预计在以下情况下使用：数据驻留在其他缓冲区中，其生存期超出
+  /// `ArrayRef` 的生存期。因此，存储 `ArrayRef` 通常不安全。
+  ///
+  /// 这旨在易于复制，因此应通过值传递。
+  ///
   /// ArrayRef - Represent a constant reference to an array (0 or more elements
   /// consecutively in memory), i.e. a start pointer and a length.  It allows
   /// various APIs to take consecutive elements easily and conveniently.
@@ -150,10 +161,14 @@ namespace llvm {
     /// @name Simple Operations
     /// @{
 
+    /// Here, using iterator = const T *;
     iterator begin() const { return Data; }
+    /// Here, using iterator = const T *;
     iterator end() const { return Data + Length; }
 
+    /// Here, using reverse_iterator = std::reverse_iterator<const T *>;
     reverse_iterator rbegin() const { return reverse_iterator(end()); }
+    /// Here, using reverse_iterator = std::reverse_iterator<const T *>;
     reverse_iterator rend() const { return reverse_iterator(begin()); }
 
     /// empty - Check if the array is empty.
@@ -190,6 +205,8 @@ namespace llvm {
       return std::equal(begin(), end(), RHS.begin());
     }
 
+    /// 返回数据自 `data()+N` 开始，长度为 `M` 。
+    ///
     /// slice(n, m) - Chop off the first N elements of the array, and keep M
     /// elements in the array.
     ArrayRef<T> slice(size_t N, size_t M) const {
@@ -197,6 +214,7 @@ namespace llvm {
       return ArrayRef<T>(data()+N, M);
     }
 
+    /// 返回数据自 `data()+N` 开始，长度为 `size()-M` 。
     /// slice(n) - Chop off the first N elements of the array.
     ArrayRef<T> slice(size_t N) const { return slice(N, size() - N); }
 
@@ -291,6 +309,11 @@ namespace llvm {
     /// @}
   };
 
+  /// `MutableArrayRef` - 表示对数组（内存中连续的 0 个或多个元素）的可变引用，即起
+  /// 始指针和长度。它允许各种 API 轻松方便地获取和修改连续元素。此类不拥有底层数据，
+  /// 预计在数据驻留在其他缓冲区中且其生存期超过 `MutableArrayRef` 生存期的情况下使
+  /// 用。因此，存储 `MutableArrayRef` 通常不安全。这旨在易于复制，因此应通过值传递。
+  ///
   /// MutableArrayRef - Represent a mutable reference to an array (0 or more
   /// elements consecutively in memory), i.e. a start pointer and a length.  It
   /// allows various APIs to take and modify consecutive elements easily and

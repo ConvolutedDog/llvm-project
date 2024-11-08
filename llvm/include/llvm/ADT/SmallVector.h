@@ -41,6 +41,13 @@ using EnableIfConvertibleToInputIterator = std::enable_if_t<std::is_convertible<
     typename std::iterator_traits<Iterator>::iterator_category,
     std::input_iterator_tag>::value>;
 
+/// 这是所有 `SmallVectors` 共有的内容。
+///
+/// 模板参数指定用于保存 `SmallVector` 的大小和容量的类型，以便可以进行调整。
+/// 最好使用 32 位大小来缩小 SmallVector 的大小。
+/// 对于 `SmallVector<char>` 等情况，最好使用 64 位大小，因为 32 位大小会将向量限制
+/// 为 ~4GB。`SmallVectors` 用于缓冲位码输出 - 可能超过 4GB。
+///
 /// This is all the stuff common to all SmallVectors.
 ///
 /// The template parameter specifies the type which should be used to hold the
@@ -63,12 +70,20 @@ protected:
   SmallVectorBase(void *FirstEl, size_t TotalCapacity)
       : BeginX(FirstEl), Capacity(static_cast<Size_T>(TotalCapacity)) {}
 
+  /// 这是 `grow()` 的一个辅助函数，用于减少代码重复。如果不能至少增长到 `MinSize` ，
+  /// 此函数将报告致命错误。
+  ///
   /// This is a helper for \a grow() that's out of line to reduce code
   /// duplication.  This function will report a fatal error if it can't grow at
   /// least to \p MinSize.
   void *mallocForGrow(void *FirstEl, size_t MinSize, size_t TSize,
                       size_t &NewCapacity);
 
+  /// 这个函数 `grow_pod` 设计用于增加POD（Plain Old Data，简单旧数据类型）类似数据
+  /// 类型的数据结构的容量。当数据结构需要扩容以满足至少 `MinSize` （最小所需大小）时，
+  /// 此函数通过 `FirstEl` （指向第一个元素的指针）进行操作，其中 `TSize` 表示每个元
+  /// 素的大小。如果无法增加容量，该函数将报告致命错误。
+  ///
   /// This is an implementation of the grow() method which only works
   /// on POD-like data types and is out of line to reduce code duplication.
   /// This function will report a fatal error if it cannot increase capacity.
@@ -101,11 +116,35 @@ protected:
   }
 };
 
+/// 这是C++中的类型选择语法，属于模板元编程的一部分。 `std::conditional_t` 是一个模
+/// 板别名，用于在编译时根据条件选择类型。整个表达式的含义是：如果 `T` 的大小小于4字节
+/// 并且你在至少是8字节指针的系统上（例如，64位系统），则选择 `uint64_t` 作为类型；否
+/// 则，选择 `uint32_t` 作为类型。这可以用于条件编译，以便在不同体系结构上优化数据结构
+/// 和算法。
 template <class T>
 using SmallVectorSizeType =
     std::conditional_t<sizeof(T) < 4 && sizeof(void *) >= 8, uint64_t,
                        uint32_t>;
 
+/// 这种语法定义了一个模板结构体 `SmallVectorAlignmentAndSize` ，它用来计算一种数据
+/// 结构（通常是一个类似于小向量的容器）的对齐和大小。这个结构体使用到了C++11中引入的
+/// 对齐指定符 `alignas` ，用来指定成员变量的内存对齐方式。 `alignas` 后面跟的类型表
+/// 明了对应成员的对齐要求应该与该类型相同。
+///
+/// `SmallVectorBase<SmallVectorSizeType<T>>` 是一个模板，根据提供的类型 `T` ，来
+/// 决定小向量的基本属性，如其大小类型。
+///
+/// 这里的 `Base` 数组被指定为与 `SmallVectorBase<SmallVectorSizeType<T>>` 类型相
+/// 同的对齐，并且其大小也是根据 `SmallVectorBase<SmallVectorSizeType<T>>` 的大小
+/// 来定义的。这样可以确保 `Base` 字段的对齐和大小模仿了小向量基础结构的内存布局。 
+///
+/// `FirstEl` 是另一个字符数组，它的对齐方式被设定为与类型 `T` 相同，大小同样是
+/// `sizeof(T)` 。这意味着 `FirstEl` 数组的对齐方式和大小被设计来直接存储一个类型为
+/// `T` 的对象，模仿小向量中第一个元素的对齐和大小。
+/// 
+/// 通过定义这样的结构体，开发者可以在不实际存储 `T` 类型对象的情况下，模拟出存储 `T`
+/// 类型对象时所需的内存布局（对齐要求和大小）。这对于理解和优化基于模板的数据结构的内
+/// 存布局非常有帮助，特别是在涉及到性能敏感和底层内存管理的场合。
 /// Figure out the offset of the first element.
 template <class T, typename = void> struct SmallVectorAlignmentAndSize {
   alignas(SmallVectorBase<SmallVectorSizeType<T>>) char Base[sizeof(
@@ -113,6 +152,9 @@ template <class T, typename = void> struct SmallVectorAlignmentAndSize {
   alignas(T) char FirstEl[sizeof(T)];
 };
 
+/// 这是 `SmallVectorTemplateBase` 的一部分，它不依赖于类型 `T` 是否为 `POD`。
+/// `ArrayRef` 使用额外的虚拟模板参数来避免不必要地要求 `T` 完整。
+///
 /// This is the part of SmallVectorTemplateBase which does not depend on whether
 /// the type T is a POD. The extra dummy template argument is used by ArrayRef
 /// to avoid unnecessarily requiring T to be complete.
@@ -134,10 +176,17 @@ protected:
 
   SmallVectorTemplateCommon(size_t Size) : Base(getFirstEl(), Size) {}
 
+  /// 这个函数 `grow_pod` 设计用于增加POD（Plain Old Data，简单旧数据类型）类似数据
+  /// 类型的数据结构的容量。当数据结构需要扩容以满足至少 `MinSize` （最小所需大小）时，
+  /// 此函数通过 `FirstEl` （指向第一个元素的指针）进行操作，其中 `TSize` 表示每个元
+  /// 素的大小。如果无法增加容量，该函数将报告致命错误。
   void grow_pod(size_t MinSize, size_t TSize) {
     Base::grow_pod(getFirstEl(), MinSize, TSize);
   }
 
+  /// 如果这是一个尚未分配动态内存的 smallvector，则返回 true。如果这两个指针相同，意
+  /// 味着 smallvector 正在使用其静态分配的空间，而没有进行动态内存分配。
+  ///
   /// Return true if this is a smallvector which has not had dynamic
   /// memory allocated for it.
   bool isSmall() const { return this->BeginX == getFirstEl(); }
@@ -148,6 +197,9 @@ protected:
     this->Size = this->Capacity = 0; // FIXME: Setting Capacity to 0 is suspect.
   }
 
+  /// 检查一个给定的指针 `V` 是否指向由 `First` 和 `Last` 定义的范围内。这个范围是左闭
+  /// 右开的，即包括 `First` 指向的位置，但不包括 `Last` 指向的位置
+  ///
   /// Return true if V is an internal reference to the given range.
   bool isReferenceToRange(const void *V, const void *First, const void *Last) const {
     // Use std::less to avoid UB.
@@ -155,11 +207,15 @@ protected:
     return !LessThan(V, First) && LessThan(V, Last);
   }
 
+  /// 检查 `V` 是否是这个向量的内部引用。
+  ///
   /// Return true if V is an internal reference to this vector.
   bool isReferenceToStorage(const void *V) const {
     return isReferenceToRange(V, this->begin(), this->end());
   }
 
+  /// 如果 `First` 和 `Last` 在该向量存储中形成有效（可能为空）范围，则返回 `true`。
+  ///
   /// Return true if First and Last form a valid (possibly empty) range in this
   /// vector's storage.
   bool isRangeInStorage(const void *First, const void *Last) const {
