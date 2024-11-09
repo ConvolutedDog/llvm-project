@@ -34,6 +34,12 @@ template <typename> struct simplify_type;
 class User;
 class Value;
 
+/// Use 表示 Value 定义与其用户之间的 edge。
+///
+/// 这在概念上是一个二维链表。它支持遍历 a particular value definition 的所有 uses。
+/// 它还支持当我们从 `User` 的操作数到达时直接跳转到 used value，当我们从 `Value` 的
+/// uses 到达时直接跳转到 User。
+///
 /// A Use represents the edge between a Value definition and its users.
 ///
 /// This is notionally a two-dimensional linked list. It supports traversing
@@ -60,6 +66,7 @@ private:
 
 public:
   friend class Value;
+  /// `User` is actualy the `User` that contains this `Use`.
   friend class User;
 
   operator Value *() const { return Val; }
@@ -93,6 +100,7 @@ private:
   Value *Val = nullptr;
   Use *Next = nullptr;
   Use **Prev = nullptr;
+  /// `User` is actualy the `User` that contains this `Use`.
   User *Parent = nullptr;
 
   void addToList(Use **List) {

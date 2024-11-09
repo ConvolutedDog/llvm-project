@@ -60,6 +60,17 @@ using ValueName = StringMapEntry<Value *>;
 
 /// LLVM Value Representation
 ///
+/// 这是一个非常重要的 LLVM 类。它是程序计算的所有值的基类，可用作其他值的操作数。`Value`
+/// 是其他重要类（如 `Instruction` 和 `Function`）的超类。所有值都有一个 `Type`。`Type`
+/// 不是 `Value` 的子类。某些 `Value` 可以具有名称，并且它们属于某个 `Module`。 
+///
+/// 在 `Value` 上设置名称会自动更新模块的 symbol table。每个 `Value` 都有一个 "use list"
+/// （使用列表），用于跟踪哪些其他 `Value` 正在使用这个 `Value`。 `Value` 还可以具有任意
+/// 数量的 `ValueHandle` 对象，这些对象监视它并侦听 RAUW 和 Destroy 事件。 有关详细信息，
+/// 请参阅 `llvm/IR/ValueHandle.h`。
+///
+/// LLVM Value Representation
+///
 /// This is a very important LLVM class. It is the base class of all values
 /// computed by a program that may be used as operands to other values. Value is
 /// the super class of other important classes such as Instruction and Function.
@@ -105,12 +116,18 @@ protected:
   /// Note, this should *NOT* be used directly by any class other than User.
   /// User uses this value to find the Use list.
   enum : unsigned { NumUserOperandsBits = 27 };
+  /// `NumUserOperands` 的位域是 NumUserOperandsBits = 27 。即用 27 位值表示操
+  /// 作数的个数。
   unsigned NumUserOperands : NumUserOperandsBits;
 
   // Use the same type as the bitfield above so that MSVC will pack them.
+  /// Indicate if there is metadata referencing this value.
   unsigned IsUsedByMD : 1;
+  /// Indicate if all values can potentially be named.
   unsigned HasName : 1;
+  /// Indicate if has metadata attached to this.
   unsigned HasMetadata : 1; // Has metadata attached to this?
+  /// Indicate if alloc must have hung off uses.
   unsigned HasHungOffUses : 1;
   unsigned HasDescriptor : 1;
 

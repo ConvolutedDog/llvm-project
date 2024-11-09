@@ -34,6 +34,11 @@ class raw_ostream;
 class StringRef;
 template <typename PtrType> class SmallPtrSetImpl;
 
+/// `Type` 类的实例是不可变的：一旦创建，它们就永远不会更改。 另请注意，只会创建一个
+/// 特定类型的实例。 因此，查看两个类型是否相等是进行简单指针比较的问题。为了强制不创
+/// 建两个相等的实例，`Type` 实例只能通过 `class Type` 和派生类中的 static factory
+/// methods创建。 一旦分配，类型就永远不会被释放。
+///
 /// The instances of the Type class are immutable: once they are created,
 /// they are never changed.  Also note that only one instance of a particular
 /// type is ever created.  Thus seeing if two types are equal is a matter of
@@ -45,6 +50,12 @@ template <typename PtrType> class SmallPtrSetImpl;
 class Type {
 public:
   //===--------------------------------------------------------------------===//
+  /// `Type` 系统的所有基本类型的定义。 根据此值，您可以强制转换为 `DerivedTypes.h`
+  /// 中定义的类。
+  ///
+  /// 注意： 如果你向 `this` 中添加一个元素，你需要向 `Type::getPrimitiveType` 函数
+  /// 添加一个元素，否则会中断！
+  ///
   /// Definitions of all of the base types for the Type system.  Based on this
   /// value, you can cast to a class defined in DerivedTypes.h.
   /// Note: If you add an element to this, you need to add an element to the
@@ -105,6 +116,14 @@ protected:
   /// Keeps track of how many Type*'s there are in the ContainedTys list.
   unsigned NumContainedTys = 0;
 
+  /// A pointer to the array of Types contained by this Type.
+  ///
+  /// 例如，这包括函数类型的参数、结构体的元素、指针的指针、数组的元素类型等。对于不包
+  /// 含其他类型 （Integer、Double、Float） 的类型，此指针可能为 0。
+  ///
+  /// 它定义了一个指向常量指针的指针，这个常量指针指向一个 `Type` 类型的对象。 
+  /// `nullptr` 初始化意味着这个指针一开始不指向任何东西。
+  ///
   /// A pointer to the array of Types contained by this Type. For example, this
   /// includes the arguments of a function type, the elements of a structure,
   /// the pointee of a pointer, the element type of an array, etc. This pointer
@@ -261,6 +280,10 @@ public:
   // True if this is an instance of TargetExtType of RISC-V vector tuple.
   bool isRISCVVectorTupleTy() const;
 
+  /// 如果此类型可以使用无损 `BitCast` 转换为类型 `Ty`，则返回 true。例如，`i8*` 到
+  /// `i32*`。`BitCasts` 仅对不重新解释位的相同大小的类型有效。确定此类型是否可以无
+  /// 损地位转换为 `Ty`。
+  ///
   /// Return true if this type could be converted with a lossless BitCast to
   /// type 'Ty'. For example, i8* to i32*. BitCasts are valid for types of the
   /// same size only where no re-interpretation of the bits is done.
@@ -350,6 +373,8 @@ public:
   //
   using subtype_iterator = Type * const *;
 
+  /// `ContainedTys` 定义了一个指向常量指针的指针，这个常量指针指向一个 `Type` 类型
+  /// 的对象。 `nullptr` 初始化意味着这个指针一开始不指向任何东西。
   subtype_iterator subtype_begin() const { return ContainedTys; }
   subtype_iterator subtype_end() const { return &ContainedTys[NumContainedTys];}
   ArrayRef<Type*> subtypes() const {
@@ -382,6 +407,9 @@ public:
   // example) is shorthand for cast<ArrayType>(Ty)->getNumElements().  This is
   // only intended to cover the core methods that are frequently used, helper
   // methods should not be added here.
+  // 与子类方法对应的 `Helper` 方法。 这会强制强制转换到指定的子类并调用其访问器。例
+  // 如，"getArrayNumElements" 是 `cast<ArrayType>(Ty)->getNumElements()` 的简写。
+  // 这仅用于涵盖经常使用的核心方法，不应在此处添加辅助方法。
 
   inline unsigned getIntegerBitWidth() const;
 
@@ -402,19 +430,27 @@ public:
 
   inline StringRef getTargetExtName() const;
 
+  /// 给定向量类型，更改元素类型，同时保持旧的元素数量。对于非向量，只需返回 `EltTy`。
+  ///
   /// Given vector type, change the element type,
   /// whilst keeping the old number of elements.
   /// For non-vectors simply returns \p EltTy.
   inline Type *getWithNewType(Type *EltTy) const;
 
+  /// 给定整数或向量类型，将 lane bitwidth 更改为 `NewBitwidth`，同时保持旧的 lanes 数量。
+  ///
   /// Given an integer or vector type, change the lane bitwidth to NewBitwidth,
   /// whilst keeping the old number of lanes.
   inline Type *getWithNewBitWidth(unsigned NewBitWidth) const;
 
+  /// 给定标量/向量整数类型，返回元素宽度为原始类型的两倍的类型。对于向量，保留元素计数。
+  ///
   /// Given scalar/vector integer type, returns a type with elements twice as
   /// wide as in the original type. For vectors, preserves element count.
   inline Type *getExtendedType() const;
 
+  /// 获取此指针或指针向量类型的地址空间。
+  ///
   /// Get the address space of this pointer or pointer vector type.
   inline unsigned getPointerAddressSpace() const;
 
