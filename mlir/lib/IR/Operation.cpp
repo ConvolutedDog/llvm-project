@@ -1145,6 +1145,11 @@ LogicalResult OpTrait::impl::verifySameOperandsAndResultRank(Operation *op) {
     return false;
   };
 
+  // `llvm::make_filter_range` 用于创建一个过滤范围，它将遍历给定的范围（在这个例子
+  // 中是 op->getOperandTypes() ），并使用提供的过滤器函数（这里是 hasRank ）过滤元
+  // 素。具体来说，它只包含那些通过 hasRank 函数检查的类型，即只包括那些具有秩的类型。
+  // 这样，返回的范围中的每个元素都是满足 hasRank 条件的，这里指的是具有秩的 MLIR 类
+  // 型。
   auto rankedOperandTypes =
       llvm::make_filter_range(op->getOperandTypes(), hasRank);
   auto rankedResultTypes =

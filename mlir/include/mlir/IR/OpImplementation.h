@@ -101,10 +101,14 @@ inline llvm::hash_code hash_value(const AsmDialectResourceHandle &param) {
 // AsmPrinter
 //===----------------------------------------------------------------------===//
 
+/// 此基类公开通用的 asm 打印机钩子，可用于各种派生的打印机。
+///
 /// This base class exposes generic asm printer hooks, usable across the various
 /// derived printers.
 class AsmPrinter {
 public:
+  /// 此类包含基本打印方法的内部默认实现。
+  ///
   /// This class contains the internal default implementation of the base
   /// printer methods.
   class Impl;
@@ -540,6 +544,8 @@ inline OpAsmPrinter &operator<<(OpAsmPrinter &p, Block *value) {
 // AsmParser
 //===----------------------------------------------------------------------===//
 
+/// 此基类公开了通用的 asm 解析器钩子，可在各种派生的解析器中使用。
+///
 /// This base class exposes generic asm parser hooks, usable across the various
 /// derived parsers.
 class AsmParser {
@@ -549,6 +555,8 @@ public:
 
   MLIRContext *getContext() const;
 
+  /// 返回原始 name token 的位置。
+  ///
   /// Return the location of the original name token.
   virtual SMLoc getNameLoc() const = 0;
 

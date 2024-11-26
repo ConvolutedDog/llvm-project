@@ -47,18 +47,59 @@ inline constexpr char GlobalIdentifierDelimiter = ';';
 
 class GlobalValue : public Constant {
 public:
+  /// 全局值的链接类型的枚举。
+  /// Ref: https://llvm.org/docs/LangRef.html#linkage
+  ///
   /// An enumeration for the kinds of linkage for global values.
   enum LinkageTypes {
+    /// 这意味着符号是外部可见的，也就是说，在其他编译单元中可以被引用和链接。在C++中，
+    /// 任何没有指定为 `static` 的全局函数或变量，默认都有外部链接。
     ExternalLinkage = 0,///< Externally visible function
+    /// 表示符号对其他编译单元可见，但它仅供检查之用，不会在最终的可执行文件中生成额外
+    /// 的定义。主要是编译器内部使用的链接类型，通常用于模板实例化。用户代码很少直接用
+    /// 到这种类型。例如当 `template <typename T> class Example {...}` 这个模板类
+    /// 被不同的编译单元使用时（例如，在多个不同的源文件中实例化），编译器可能会选择为
+    /// 特定的模板实例 `Example<int>/<char>` 等生成 `AvailableExternallyLinkage`
+    /// 的符号。这意味着这些实例化的代码虽然在多个地方可用，但它们的定义仅在第一次需要
+    /// 它们的编译单元中真正被编译和链接，其他使用这些模板实例的编译单元将重新使用这些
+    /// 已经生成的符号，而不是重新实例化。
     AvailableExternallyLinkage, ///< Available for inspection, not emission.
+    /// 编译器保留一个符号定义，在多个编译单元中出现时不会引起重复定义错误。通常用于内
+    /// 联函数。在C++中， `inline` 函数就是一个很好的例子，`inline` 函数可能在多个编
+    /// 译单元中定义，但链接时只保留一份。
     LinkOnceAnyLinkage, ///< Keep one copy of function when linking (inline)
+    /// 类似于 `LinkOnceAnyLinkage`，但它遵循 "One Definition Rule"（ODR），即只有
+    /// 当多个版本完全相同时，才会保留一个定义。C++类的成员函数（除明确声明为 `inline`
+    /// 之外）隐含此链接属性。例如成员函数 `struct X { void memberFunc(){} };` 遵循
+    /// ODR链接，如果多个编译单元中都有此定义，链接时会处理为只保留一份。
     LinkOnceODRLinkage, ///< Same, but only replaced by something equivalent.
+    /// 弱链接允许定义在不同编译单元中的符号有多个定义，链接器在链接时只保留一份定义。
+    /// 如果有多个弱符号定义，链接器将选择其中一个，而不保证选择哪一个。例如使用弱链接
+    /// 声明：`__attribute__((weak)) void weakFunc() {}`
     WeakAnyLinkage,     ///< Keep one copy of named function when linking (weak)
+    /// 类似于 `WeakAnyLinkage`，但是遵守ODR。这意味着只有当所有的定义都相等时，链接
+    /// 器才会选择一个定义。
     WeakODRLinkage,     ///< Same, but only replaced by something equivalent.
+    /// 这是一种特殊用途的链接类型，仅适用于全局数组。它允许将同名的全局数组合并成一个
+    /// 数组。LLVM中的全局构造函数数组是这种类型的一个例子:
+    /// `@llvm.global_ctors = appending global [N x { i32, void ()* }] [ ... ]`
     AppendingLinkage,   ///< Special purpose, only applies to global arrays
+    /// 符号仅在定义它的编译单元中可见。如果在不同的编译单元中有相同名字的符号，它们将
+    /// 被视为不同的符号（类似于 `static` 函数）。使用 `static` 关键字修饰的全局变量
+    /// 或函数。
     InternalLinkage,    ///< Rename collisions when linking (static functions).
+    /// 类似于 `InternalLinkage`，但是符号甚至不会被包含在符号表中，使得它对链接器也
+    /// 是不可见的。在C++中没有直接的等价，但可以通过匿名命名空间实现类似效果，对链接
+    /// 器不可见，类似于私有链接：`namespace {int privateVar = 0;}`
     PrivateLinkage,     ///< Like Internal, but omit from symbol table.
+    /// 这种链接类型用于定义一个弱符号，该符号必须被外部定义。如果外部没有定义，符号可
+    /// 能未被初始化。通常用于声明一个可选的外部函数，如果该函数被定义，就使用该定义；
+    /// 如果未定义，程序定义了默认行为：
+    /// `extern int __attribute__((weak)) optionalFunc();`
     ExternalWeakLinkage,///< ExternalWeak linkage description.
+    /// 这是用于未初始化全局变量的默认链接方式，允许在不同的编译单元中多次声明同一个全
+    /// 局变量而不出错。在链接阶段，所有这些声明会被解析为同一个变量的引用。在多个文件
+    /// 中声明未初始化的全局变量。
     CommonLinkage       ///< Tentative definitions.
   };
 

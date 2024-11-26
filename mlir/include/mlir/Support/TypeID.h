@@ -27,6 +27,62 @@ namespace mlir {
 // TypeID
 //===----------------------------------------------------------------------===//
 
+/// 此类为特定 C++ type 提供高效的唯一标识符。这允许在 opaque context 中比较、散列
+/// 和存储 C++ 类型。此类在某些方面与 std::type_index 类似，但可用于任何类型。例如，
+/// 此类可用于为类型层次结构实现 LLVM 样式的 isa/dyn_cast 功能：
+///
+///  struct Base {
+///    Base(TypeID typeID) : typeID(typeID) {}
+///    TypeID typeID;
+///  };
+///
+///  struct DerivedA : public Base {
+///    DerivedA() : Base(TypeID::get<DerivedA>()) {}
+///
+///    static bool classof(const Base *base) {
+///      return base->typeID == TypeID::get<DerivedA>();
+///    }
+///  };
+///
+///  void foo(Base *base) {
+///    if (DerivedA *a = llvm::dyn_cast<DerivedA>(base))
+///       ...
+///  }
+/// C++ RTTI（Run-Time Type Information）是一个出了名的难题；鉴于共享库的性质，许
+/// 多不同的方法在支持方面（即仅支持某些类型的类）或性能方面（例如通过使用字符串比较）
+/// 根本上都失败了。此类旨在在性能和启用其使用所需的设置之间取得平衡。
+///
+/// 假设我们正在添加对某些 Foo 类的支持，下面是支持给定 c++ 类型的一组方式：
+///
+/// 1. 通过 `MLIR_DECLARE_EXPLICIT_TYPE_ID` 和 `MLIR_DEFINE_EXPLICIT_TYPE_ID`
+///    显式定义。
+///    - 此方法使用给定的宏明确定义给定类型的类型 ID。这些宏应放置在文件的顶层（即不
+///      在任何命名空间或类内）。这是最有效和最有效率的方法，但需要为每种类型提供显式
+///      的 annotations。
+///      示例：
+///      // Foo.h
+///      MLIR_DECLARE_EXPLICIT_TYPE_ID(Foo);
+///      // Foo.cpp
+///      MLIR_DEFINE_EXPLICIT_TYPE_ID(Foo);
+///
+/// 2. 通过 `MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID` 显式定义。
+///    - 此方法通过直接注释类来明确定义给定类型的类型 ID。这与上述方法具有类似的有效
+///      性和效率，但应仅用于内部类；即那些定义受限于特定库的类（通常是匿名命名空间中
+///      的类）。
+///      示例：
+///       namespace {
+///       class Foo {
+///       public:
+///         MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(Foo)
+///       };
+///       } // namespace
+///
+/// 3. 通过使用类型名称的回退隐式定义。
+///    - 此方法通过使用类型名称隐式定义给定类型的类型 ID。此方法不需要用户明确提供任
+///      何信息，但需要额外的访问和初始化成本。鉴于此方法使用类型的名称，因此它不能用
+///      于在匿名命名空间中定义的类型（当可以检测到时会断言）。字符串名称在这些上下文
+///      中不提供任何唯一性的保证。
+///
 /// This class provides an efficient unique identifier for a specific C++ type.
 /// This allows for a C++ type to be compared, hashed, and stored in an opaque
 /// context. This class is similar in some ways to std::type_index, but can be
@@ -102,6 +158,15 @@ namespace mlir {
 ///     names do not provide any guarantees on uniqueness in these contexts.
 ///
 class TypeID {
+  /// TypeID 类表示类型信息对象的存储。
+  /// 注意：我们在此指定显式对齐，以允许与 PointerIntPair 和其他需要已知指针对齐的实
+  /// 用程序/数据结构一起使用。
+  ///
+  /// 指定对齐是出于性能和兼容性考虑。对于某些处理器和算法，对齐的数据可以更高效地被访
+  /// 问。特别是对于需要已知指针对齐的工具或数据结构（如 PointerIntPair 等），显式对
+  /// 齐非常重要。PointerIntPair 是一个能够同时存储一个指针和一个整数的工具，但它要求
+  /// 能够确切知道指针的对齐要求，以便高效地存储和访问数据。
+  ///
   /// This class represents the storage of a type info object.
   /// Note: We specify an explicit alignment here to allow use with
   /// PointerIntPair and other utilities/data structures that require a known

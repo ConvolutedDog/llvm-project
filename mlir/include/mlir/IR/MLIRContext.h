@@ -59,7 +59,15 @@ class IRUnit;
 ///
 class MLIRContext {
 public:
+  /// 控制 MLIRContext 对象在多线程环境下的行为：
+  /// 1. Single-Threaded（单线程）：在这种模式下，MLIRContext 只会被单个线程使用。
+  /// 这种情况下，可以关闭所有的线程安全保护，以避免不必要的性能开销。
+  /// 2. Multi-Threaded（多线程）：在这种模式下，MLIRContext 可以被多个线程并发访
+  /// 问。必须启用线程安全的机制，例如通过锁(lock)或原子操作(atomic operation)
+  /// 来保护对共享资源的访问，以避免数据竞争。
   enum class Threading { DISABLED, ENABLED };
+  /// 构造函数。
+  ///
   /// Create a new Context.
   explicit MLIRContext(Threading multithreading = Threading::ENABLED);
   explicit MLIRContext(const DialectRegistry &registry,

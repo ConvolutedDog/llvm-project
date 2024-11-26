@@ -131,6 +131,10 @@ bool hasPromisedInterface(Dialect &dialect) {
 // DialectRegistry
 //===----------------------------------------------------------------------===//
 
+/// DialectRegistry 将方言命名空间映射到匹配方言的构造函数。这允许将 "available"
+/// 方言列表与 Context 中加载的方言分离。解析器将在遇到 operations 时 lazily 加
+/// 载 Context 中的方言。
+///
 /// The DialectRegistry maps a dialect namespace to a constructor for the
 /// matching dialect. This allows for decoupling the list of dialects
 /// "available" from the dialects loaded in the Context. The parser in

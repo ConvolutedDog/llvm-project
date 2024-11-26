@@ -38,6 +38,9 @@ namespace mlir {
 // DialectAsmPrinter
 //===----------------------------------------------------------------------===//
 
+/// 这是一个纯虚拟基类，它公开了在方言上实现自定义 printAttribute/printType() 方法所
+/// 需的 asmprinter 钩子。
+///
 /// This is a pure-virtual base class that exposes the asmprinter hooks
 /// necessary to implement a custom printAttribute/printType() method on a
 /// dialect.
@@ -51,6 +54,8 @@ public:
 // DialectAsmParser
 //===----------------------------------------------------------------------===//
 
+/// DialectAsmParser 具有在解析属性和类型时与 asm 解析器交互的方法。
+///
 /// The DialectAsmParser has methods for interacting with the asm parser when
 /// parsing attributes and types.
 class DialectAsmParser : public AsmParser {
