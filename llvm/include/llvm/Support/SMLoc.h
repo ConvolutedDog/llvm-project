@@ -19,6 +19,8 @@
 
 namespace llvm {
 
+/// 代表源码中的一个位置。
+///
 /// Represents a location in source code.
 class SMLoc {
   const char *Ptr = nullptr;
@@ -40,6 +42,11 @@ public:
   }
 };
 
+/// 表示源码的一段范围。SMRange 成员变量：`SMLoc Start, End;`
+///
+/// SMRange 使用半开范围实现，这是 C++ 中的惯例。在字符串 "abc" 中，范围 [1,3) 表示子
+/// 字符串 "bc"，范围 [2,2) 表示字符 "b" 和 "c" 之间的空范围。
+/// 
 /// Represents a range in source code.
 ///
 /// SMRange is implemented using a half-open range, as is the convention in C++.
