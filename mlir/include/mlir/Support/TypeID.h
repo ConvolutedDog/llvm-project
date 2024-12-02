@@ -174,6 +174,8 @@ class TypeID {
   struct alignas(8) Storage {};
 
 public:
+  /// `get<void>()` 是一个静态方法，用于获取 void 类型的类型信息对象（存储在 Storage
+  /// 中）。这表示默认构造一个 TypeID 对象，其存储的是 void 类型的类型信息。
   TypeID() : TypeID(get<void>()) {}
 
   /// Comparison operations.
@@ -190,6 +192,9 @@ public:
   template <template <typename> class Trait>
   static TypeID get();
 
+  /// 这个方法返回 storage 指针的 void 类型指针，这允许将 TypeID 对象转换为一个通用
+  /// 的不透明指针。
+  ///
   /// Methods for supporting PointerLikeTypeTraits.
   const void *getAsOpaquePointer() const {
     return static_cast<const void *>(storage);
@@ -202,8 +207,11 @@ public:
   friend ::llvm::hash_code hash_value(TypeID id);
 
 private:
+  /// 私有构造函数。
   TypeID(const Storage *storage) : storage(storage) {}
 
+  /// 这是 TypeID 类的一个私有成员变量，用于存储类型信息对象的指针。
+  ///
   /// The storage of this type info object.
   const Storage *storage;
 
@@ -351,11 +359,16 @@ TypeID TypeID::get() {
 // TypeIDAllocator
 //===----------------------------------------------------------------------===//
 
+/// 此类提供了一种在运行时定义新 TypeID 的方法。当分配器被析构时，所有分配的 TypeID
+/// 都将变为无效，因此不应使用。
+///
 /// This class provides a way to define new TypeIDs at runtime.
 /// When the allocator is destructed, all allocated TypeIDs become invalid and
 /// therefore should not be used.
 class TypeIDAllocator {
 public:
+  /// 分配一个新的 TypeID，这被保证在 TypeIDAllocator 的生命期是独一无二的。
+  ///
   /// Allocate a new TypeID, that is ensured to be unique for the lifetime
   /// of the TypeIDAllocator.
   TypeID allocate() { return TypeID(ids.Allocate()); }

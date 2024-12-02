@@ -31,6 +31,11 @@
 
 namespace llvm {
 
+/// CRTP 基类为 LLVM 风格分配器的核心 \c Allocate() 方法提供了重载。
+///
+/// 这个基类既记录了所有 LLVM 风格分配器公开的完整公共接口，又将所有重载重定向到派生
+/// 类必须定义的单个核心方法集。
+///
 /// CRTP base class providing obvious overloads for the core \c
 /// Allocate() methods of LLVM-style allocators.
 ///
@@ -39,10 +44,18 @@ namespace llvm {
 /// set of methods which the derived class must define.
 template <typename DerivedT> class AllocatorBase {
 public:
+  /// 分配 \a Size 个字节的 \a Alignment 对齐的内存，这个方法必须被 \c DerivedT
+  /// 实现。
+  ///
   /// Allocate \a Size bytes of \a Alignment aligned memory. This method
   /// must be implemented by \c DerivedT.
   void *Allocate(size_t Size, size_t Alignment) {
 #ifdef __clang__
+    // void *: 这是函数的返回类型，表示函数返回一个 void 指针，也就是一个指向任意类
+    // 型数据的指针。
+    // (AllocatorBase::*): 这部分表示这是一个成员函数指针，它指向 AllocatorBase
+    // 类中的一个成员函数。这个函数属于 AllocatorBase 类。
+    // (size_t, size_t): 这是函数的参数列表，表示该函数接受两个 size_t 类型的参数。
     static_assert(static_cast<void *(AllocatorBase::*)(size_t, size_t)>(
                       &AllocatorBase::Allocate) !=
                       static_cast<void *(DerivedT::*)(size_t, size_t)>(

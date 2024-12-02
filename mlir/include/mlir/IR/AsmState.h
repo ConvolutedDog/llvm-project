@@ -529,6 +529,12 @@ private:
 // AsmState
 //===----------------------------------------------------------------------===//
 
+/// 此类提供打印 IR 时使用的状态的生命周期管理。它允许减轻重新计算 asm 打印机内部状态
+/// 的成本。
+///
+/// 不应在使用此状态的调用之间改变 IR，并且正在打印的 IR 不能是最初用于初始化此状态的
+/// IR 的父级。这意味着如果提供了子操作，则父操作不能重用此状态。
+///
 /// This class provides management for the lifetime of the state used when
 /// printing the IR. It allows for alleviating the cost of recomputing the
 /// internal state of the asm printer.
@@ -539,6 +545,9 @@ private:
 /// parent operation cannot reuse this state.
 class AsmState {
 public:
+  /// 此 map 表示输出流中操作的原始位置。它将指向操作的原始指针 map 到输出流中的
+  /// 一对行和列。
+  ///
   /// This map represents the raw locations of operations within the output
   /// stream. This maps the original pointer to the operation, to a pair of line
   /// and column in the output stream.

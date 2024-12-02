@@ -41,6 +41,21 @@ void printBumpPtrAllocatorStats(unsigned NumSlabs, size_t BytesAllocated,
 
 } // end namespace detail
 
+/// 在不断增长的池中分配内存，就像通过碰撞指针一样。
+///
+/// 这严格来说不是一个碰撞指针分配器，因为它使用内存的后备板，而不是依赖于无边界的连
+/// 续堆。但是，它具有碰撞指针语义，因为它是一个单调增长的内存池，其中每个分配都仅通
+/// 过分配板中的下一个 N 个字节或下一个板中的下一个 N 个字节来找到。请注意，这也有一
+/// 个阈值，用于强制将超过一定大小的分配放入它们自己的板中。BumpPtrAllocatorImpl 模
+/// 板默认使用 MallocAllocator 对象（包装 malloc）来分配内存，但可以将其更改为使用
+/// 自定义分配器。GrowthDelay 指定分配器在分配多少个板后增加板的大小。
+///
+/// 碰撞指针分配器 (Bump Pointer Allocator) 是一种非常简单的内存分配器，其工作原理
+/// 类似于堆栈。它维护一个指针，指向一个预先分配好的内存块的起始位置。每次分配内存时，
+/// 它都将这个指针向前移动分配所需的大小，并将该内存区域返回给请求者。释放内存时，通
+/// 常不需要显式操作，因为内存块的分配是连续的，并且在程序结束时只能一次性释放整个内
+/// 存块。
+///
 /// Allocate memory in an ever growing pool, as if by bump-pointer.
 ///
 /// This isn't strictly a bump-pointer allocator as it uses backing slabs of
@@ -377,6 +392,10 @@ private:
   template <typename T> friend class SpecificBumpPtrAllocator;
 };
 
+/// 标准 BumpPtrAllocator 仅使用默认模板参数。BumpPtrAllocator 实际上是 
+/// BumpPtrAllocatorImpl<> 模板类的特例化，其中尖括号内为空，表示使用模板
+/// 类的默认参数。
+///
 /// The standard BumpPtrAllocator which just uses the default template
 /// parameters.
 typedef BumpPtrAllocatorImpl<> BumpPtrAllocator;

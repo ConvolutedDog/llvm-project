@@ -385,6 +385,10 @@ static raw_ostream &operator<<(raw_ostream &os, NewLineCounter &newLine) {
 //===----------------------------------------------------------------------===//
 
 namespace mlir {
+/// 此类包含基本打印方法的内部默认实现。
+///
+/// This class contains the internal default implementation of the base
+/// printer methods.
 class AsmPrinter::Impl {
 public:
   Impl(raw_ostream &os, AsmStateImpl &state);

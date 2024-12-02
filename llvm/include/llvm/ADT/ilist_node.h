@@ -154,6 +154,50 @@ public:
   }
 };
 
+/// 侵入式列表节点。
+///
+/// 该类是一个启用侵入式列表中成员资格的基类，包括 \a simple_ilist, \a iplist 和 \a ilist.
+/// 第一个模板参数是列表的 \a value_type.
+///
+/// 可以使用编译时选项配置 ilist node 以更改行为 and/or 添加 API。
+///
+/// 默认情况下，当且仅当 LLVM_ENABLE_ABI_BREAKING_CHECKS 时， \a ilist_node 才知它是否
+/// 是 list sentinel（ \a ilist_sentinel 的实例）。函数 \a isKnownSentinel() 始终返回
+/// \c false tracking is off。Sentinel tracking 从 "prev" link 中窃取了一点，它在递减
+/// 迭代器时添加了掩码操作，但在 \a ilist_iterator 中启用了 bug-finding 断言。
+///
+/// 要始终开启 sentinel tracking，请传入 ilist_sentinel_tracking<true> 模板参数。这还
+/// 会启用 \a isSentinel() 函数。必须将相同的选项传递给侵入式列表。
+/// （ilist_sentinel_tracking<false> 始终关闭 sentinel tracking。）
+///
+/// 类型可以通过传入不同的 \a ilist_tag 选项多次从 ilist_node 继承。这允许将单个实例同时
+/// 插入多个列表，其中每个列表都具有相同的标签。
+///
+/// \example
+/// struct A {};
+/// struct B {};
+/// struct N : ilist_node<N, ilist_tag<A>>, ilist_node<N, ilist_tag<B>> {};
+///
+/// void foo() {
+///   simple_ilist<N, ilist_tag<A>> ListA;
+///   simple_ilist<N, ilist_tag<B>> ListB;
+///   N N1;
+///   ListA.push_back(N1);
+///   ListB.push_back(N1);
+/// }
+/// \endexample
+///
+/// 当 \a ilist_parent<ParentTy> 选项传递给 ilist_node 和所属 ilist 时，每个节点都包含
+/// 指向 ilist 所有者的指针。这会将 \a getParent() 和 \a setParent(ParentTy*) 方法添加
+/// 到 ilist_node，如果节点类公开继承自 \a ilist_node_with_parent， 则 ilist 将使用它们
+/// 进行节点访问。默认情况下，ilist 不会自动调用 setParent()；SymbolTableList 将在插入
+/// 的节点上调用 setParent()，但在创建列表后仍必须手动设置标记（例如 SymTabList.end()->
+/// setParent(Parent)）。
+///
+/// 使用 ilist_parent 的主要好处是父指针将存储在 sentinel 中，这意味着您可以安全地使用
+/// \a ilist_iterator::getNodeParent() 从任何有效（即非空）迭代器获取节点父级，即使是
+/// 指向哨兵值的迭代器。
+///
 /// An intrusive list node.
 ///
 /// A base class to enable membership in intrusive lists, including \a
