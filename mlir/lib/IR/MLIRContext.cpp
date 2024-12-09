@@ -190,6 +190,10 @@ public:
   /// and efficient `getRegisteredOperations` implementation.
   SmallVector<RegisteredOperationName, 0> sortedRegisteredOperations;
 
+  /// 这是此 context 创建的方言列表。第一位都是方言的 namespace。例如 "::mlir::arith"。
+  ///
+  /// MLIRContext 拥有这些对象。需要在注册操作之后声明这些对象，以确保正确的销毁顺序。
+  ///
   /// This is a list of dialects that are created referring to this context.
   /// The MLIRContext owns the objects. These need to be declared after the
   /// registered operations to ensure correct destruction order.
@@ -433,18 +437,27 @@ const DialectRegistry &MLIRContext::getDialectRegistry() {
   return impl->dialectsRegistry;
 }
 
+/// 返回所有 registered IR dialects，作为一个 Dialect * 的向量返回。
+///
 /// Return information about all registered IR dialects.
 std::vector<Dialect *> MLIRContext::getLoadedDialects() {
   std::vector<Dialect *> result;
+  // impl->loadedDialects 是当前 context 创建的方言列表，其定义如下：
+  //     mlir::DenseMap<llvm::StringRef, std::unique_ptr<mlir::Dialect>> mlir::MLIRContextImpl::loadedDialects
+  // 所以 dialect.second.get() 其实是 std::unique_ptr.get() 也就是返回
+  // mlir::Dialect* 原始指针对象。
   result.reserve(impl->loadedDialects.size());
   for (auto &dialect : impl->loadedDialects)
     result.push_back(dialect.second.get());
+  // 对 result 中的方言排序，按方言的 getNamespace() 大小排序。
   llvm::array_pod_sort(result.begin(), result.end(),
                        [](Dialect *const *lhs, Dialect *const *rhs) -> int {
                          return (*lhs)->getNamespace() < (*rhs)->getNamespace();
                        });
   return result;
 }
+
+/// 遍历当前 context 创建的方言列表，返回所有 registered IR dialects 的名字向量。
 std::vector<StringRef> MLIRContext::getAvailableDialects() {
   std::vector<StringRef> result;
   for (auto dialect : impl->dialectsRegistry.getDialectNames())
@@ -452,23 +465,38 @@ std::vector<StringRef> MLIRContext::getAvailableDialects() {
   return result;
 }
 
+/// 获取具有给定命名空间的已注册 IR 方言。如果未找到，则返回 nullptr。
+///
 /// Get a registered IR dialect with the given namespace. If none is found,
 /// then return nullptr.
 Dialect *MLIRContext::getLoadedDialect(StringRef name) {
   // Dialects are sorted by name, so we can use binary search for lookup.
   auto it = impl->loadedDialects.find(name);
+  // impl->loadedDialects 是当前 context 创建的方言列表，其定义如下：
+  //     mlir::DenseMap<llvm::StringRef, std::unique_ptr<mlir::Dialect>> mlir::MLIRContextImpl::loadedDialects
+  // 所以 it->second.get() 其实是 std::unique_ptr.get() 也就是返回
+  // mlir::Dialect* 原始指针对象。
   return (it != impl->loadedDialects.end()) ? it->second.get() : nullptr;
 }
 
+/// 根据已知方言名字 name 获取 registered 方言。 
 Dialect *MLIRContext::getOrLoadDialect(StringRef name) {
+  // 根据已知方言名字 name 获取 registered 方言。
   Dialect *dialect = getLoadedDialect(name);
+  // 如果这个 registered 方言存在，返回它。
   if (dialect)
     return dialect;
+  // DialectAllocatorFunctionRef 的定义：
+  //     using mlir::DialectAllocatorFunctionRef = mlir::function_ref<mlir::Dialect *(mlir::MLIRContext *)>
+  // DialectRegistry 将方言命名空间映射到匹配方言的构造函数。
   DialectAllocatorFunctionRef allocator =
       impl->dialectsRegistry.getDialectAllocator(name);
   return allocator ? allocator(this) : nullptr;
 }
 
+/// 获取给定命名空间和 TypeID 的方言：如果此命名空间存在具有不同 TypeID 的方言，则中止
+/// 程序。返回指向 context 所拥有的方言的指针。
+///
 /// Get a dialect for the provided namespace and TypeID: abort the program if a
 /// dialect exist for this namespace with different TypeID. Returns a pointer to
 /// the dialect owned by the context.
@@ -477,8 +505,12 @@ MLIRContext::getOrLoadDialect(StringRef dialectNamespace, TypeID dialectID,
                               function_ref<std::unique_ptr<Dialect>()> ctor) {
   auto &impl = getImpl();
   // Get the correct insertion position sorted by namespace.
+  // impl->loadedDialects 是当前 context 创建的方言列表，其定义如下：
+  //     mlir::DenseMap<llvm::StringRef, std::unique_ptr<mlir::Dialect>> mlir::MLIRContextImpl::loadedDialects
   auto dialectIt = impl.loadedDialects.try_emplace(dialectNamespace, nullptr);
 
+  // 当 dialect 已在 mlir::DenseMap 中，dialectIt.second 返回 false；反之插入 
+  // (dialectNamespace, nullptr) 对并返回 true。
   if (dialectIt.second) {
     LLVM_DEBUG(llvm::dbgs()
                << "Load new dialect in Context " << dialectNamespace << "\n");
@@ -490,15 +522,25 @@ MLIRContext::getOrLoadDialect(StringRef dialectNamespace, TypeID dialectID,
           "the PassManager): this can indicate a "
           "missing `dependentDialects` in a pass for example.");
 #endif // NDEBUG
+    // loadedDialects 条目初始化为 nullptr，表示当前正在加载方言。重新查找
+    // loadedDialects 中的地址，因为该表可能已通过 ctor() 中的递归方言加载重新散列。
+    //
     // loadedDialects entry is initialized to nullptr, indicating that the
     // dialect is currently being loaded. Re-lookup the address in
     // loadedDialects because the table might have been rehashed by recursive
     // dialect loading in ctor().
+    // 
+    // ctor() 的定义:
+    //     mlir::function_ref<std::unique_ptr<mlir::Dialect> ()> ctor;
+    // 通过引用 dialectOwned 直接访问这个新存储的 unique_ptr。
     std::unique_ptr<Dialect> &dialectOwned =
         impl.loadedDialects[dialectNamespace] = ctor();
     Dialect *dialect = dialectOwned.get();
     assert(dialect && "dialect ctor failed");
 
+    // 刷新所有标识符方言字段，这将捕获在已创建以此方言名称为前缀的标识符后可能加载
+    // 方言的情况。
+    //
     // Refresh all the identifiers dialect field, this catches cases where a
     // dialect may be loaded after identifier prefixed with this dialect name
     // were already created.

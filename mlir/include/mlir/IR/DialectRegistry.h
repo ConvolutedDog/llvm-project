@@ -33,6 +33,10 @@ using DynamicDialectPopulationFunction =
 // DialectExtension
 //===----------------------------------------------------------------------===//
 
+/// 此类表示不透明方言的扩展。它包含一组必需的方言和一个应用程序函数。必需的方言控制何
+/// 时应用扩展，即加载所有必需的方言后才应用扩展。应用程序函数可用于将附加功能附加到属
+/// 性、方言、操作、类型等，还可以加载其他必要的方言。
+///
 /// This class represents an opaque dialect extension. It contains a set of
 /// required dialects and an application function. The required dialects control
 /// when the extension is applied, i.e. the extension is applied when all
@@ -43,19 +47,29 @@ class DialectExtensionBase {
 public:
   virtual ~DialectExtensionBase();
 
+  /// 返回此扩展在应用之前需要加载的方言。如果为空，则将为每个已加载的方言独立调用此
+  /// 扩展。
+  ///
   /// Return the dialects that our required by this extension to be loaded
   /// before applying. If empty then the extension is invoked for every loaded
   /// dialect indepently.
   ArrayRef<StringRef> getRequiredDialects() const { return dialectNames; }
 
+  /// 将此扩展应用于给定的上下文和所需的方言。
+  ///
   /// Apply this extension to the given context and the required dialects.
   virtual void apply(MLIRContext *context,
                      MutableArrayRef<Dialect *> dialects) const = 0;
 
+  /// 返回此扩展的副本。
+  ///
   /// Return a copy of this extension.
   virtual std::unique_ptr<DialectExtensionBase> clone() const = 0;
 
 protected:
+  /// 使用一组必需的方言初始化扩展。
+  /// 如果列表为空，则将为每个加载的方言单独调用此扩展。
+  ///
   /// Initialize the extension with a set of required dialects.
   /// If the list is empty, the extension is invoked for every loaded dialect
   /// independently.
@@ -63,6 +77,8 @@ protected:
       : dialectNames(dialectNames) {}
 
 private:
+  /// 受此扩展影响的方言的名称。
+  ///
   /// The names of the dialects affected by this extension.
   SmallVector<StringRef> dialectNames;
 };
@@ -141,16 +157,24 @@ bool hasPromisedInterface(Dialect &dialect) {
 /// particular will lazily load dialects in the Context as operations are
 /// encountered.
 class DialectRegistry {
+  /// DialectAllocatorFunction 的定义：
+  ///     using mlir::DialectAllocatorFunction = std::function<mlir::Dialect *(mlir::MLIRContext *)>
+  /// 这里是指向要查询的方言的构造函数，这个构造函数返回类型是 mlir::Dialect *，
+  /// 输入参数是 mlir::MLIRContext *。
   using MapTy =
       std::map<std::string, std::pair<TypeID, DialectAllocatorFunction>>;
 
 public:
   explicit DialectRegistry();
 
+  /// 这里是 
   template <typename ConcreteDialect>
   void insert() {
     insert(TypeID::get<ConcreteDialect>(),
            ConcreteDialect::getDialectNamespace(),
+           // 匿名函数，（也称为lambda表达式）。该函数接受一个指向 MLIRContext 
+           // 类型对象的指针作为参数。MLIRContext 是MLIR框架中的一个核心概念，
+           // 它管理并包含了与MLIR实例相关的所有状态，例如已注册的方言和操作类型。
            static_cast<DialectAllocatorFunction>(([](MLIRContext *ctx) {
              // Just allocate the dialect, the context
              // takes ownership of it.

@@ -244,6 +244,9 @@ public:
                           true);
   }
 
+  // 如果键不在映射中，则将键、值对插入到映射中。
+  // 如果键不在映射中，则就地构造值，否则不会移动值。
+  //
   // Inserts key,value pair into the map if the key isn't already in the map.
   // The value is constructed in-place if the key is not in the map, otherwise
   // it is not moved.

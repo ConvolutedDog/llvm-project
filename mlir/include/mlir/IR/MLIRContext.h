@@ -35,6 +35,23 @@ class RegisteredOperationName;
 class StorageUniquer;
 class IRUnit;
 
+/// MLIRContext 是 MLIR operations 的集合的顶级对象。它包含 never dying 的唯一对
+/// 象（如类型）以及 tables used to unique them。
+///
+/// MLIRContext 获得一个多余的 "MLIR" 前缀，因为否则它最终会得到一个非常通用的名称
+///（“Context”），并且客户端很少与其交互。
+///
+/// context 包装了一些多线程设施，特别是默认情况下它将隐式创建一个线程池。如果同时存
+/// 在多个 context，或者如果某个进程将长期存在并创建和销毁 contexts，这可能是不可取
+/// 的。为了更好地控制线程生成，可以在 context 中注入外部拥有的 ThreadPool。例如：
+///
+///  llvm::DefaultThreadPool myThreadPool;
+///  while (auto *request = nextCompilationRequests()) {
+///    MLIRContext ctx(registry, MLIRContext::Threading::DISABLED);
+///    ctx.setThreadPool(myThreadPool);
+///    processRequest(request, cxt);
+///  }
+///
 /// MLIRContext is the top-level object for a collection of MLIR operations. It
 /// holds immortal uniqued objects like types, and the tables used to unique
 /// them.

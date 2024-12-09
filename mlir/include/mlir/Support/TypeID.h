@@ -186,9 +186,12 @@ public:
     return !(*this == other);
   }
 
+  /// 对于给定的 type T，构建一个 type info。例如 get<void>。
+  ///
   /// Construct a type info object for the given type T.
   template <typename T>
   static TypeID get();
+  /// 对于给定的模板类 Trait<T>，构建一个 type info。例如 get<Trait<T>>。
   template <template <typename> class Trait>
   static TypeID get();
 
@@ -210,7 +213,8 @@ private:
   /// 私有构造函数。
   TypeID(const Storage *storage) : storage(storage) {}
 
-  /// 这是 TypeID 类的一个私有成员变量，用于存储类型信息对象的指针。
+  /// 这是 TypeID 类的一个私有成员变量，用于存储类型信息对象的指针。Storage 定义如下：
+  ///     struct alignas(8) Storage {};
   ///
   /// The storage of this type info object.
   const Storage *storage;
@@ -374,6 +378,9 @@ public:
   TypeID allocate() { return TypeID(ids.Allocate()); }
 
 private:
+  /// 分配的 TypeID 是不同存储的地址。
+  /// 将它们保存在内存中可确保 TypeID 的唯一性。
+  ///
   /// The TypeIDs allocated are the addresses of the different storages.
   /// Keeping those in memory ensure uniqueness of the TypeIDs.
   llvm::SpecificBumpPtrAllocator<TypeID::Storage> ids;

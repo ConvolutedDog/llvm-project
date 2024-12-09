@@ -215,6 +215,19 @@ void applyExtensionsFn(
 
 DialectRegistry::DialectRegistry() { insert<BuiltinDialect>(); }
 
+/// 这里是指向要查询的方言的构造函数，这个构造函数返回类型是 mlir::Dialect *，
+/// 输入参数是 mlir::MLIRContext *。
+/// 那么 registry 是一个 MapTy 对象，也就是说，registry 是一个 map，
+/// 它的第一维度是方言的 name，第二维度是 std::pair<TypeID, DialectAllocatorFunction>，
+/// 分别是这个方言的 TypeID 和 DialectAllocatorFunction。
+///     using MapTy =
+///         std::map<std::string, std::pair<TypeID, DialectAllocatorFunction>>;
+///     MapTy registry;
+/// DialectRegistry 本身是将方言命名空间映射到匹配方言的构造函数。这里的
+/// DialectAllocatorFunction 的定义：
+///     using mlir::DialectAllocatorFunction = std::function<mlir::Dialect *(mlir::MLIRContext *)>
+/// 所以这里是返回方言的构造函数，这个构造函数的类型是 mlir::Dialect *，接受
+/// 参数 mlir::MLIRContext *。
 DialectAllocatorFunctionRef
 DialectRegistry::getDialectAllocator(StringRef name) const {
   auto it = registry.find(name.str());
@@ -252,6 +265,7 @@ void DialectRegistry::insertDynamic(
   insert(typeID, name, constructor);
 }
 
+/// Apply any extensions to this newly loaded dialect. 
 void DialectRegistry::applyExtensions(Dialect *dialect) const {
   MLIRContext *ctx = dialect->getContext();
   StringRef dialectName = dialect->getNamespace();
