@@ -31,6 +31,10 @@ namespace mlir {
 class Builder;
 class OpBuilder;
 
+/// 此类为 ParseResult 实现了 `Optional` 功能。我们在这里不直接使用 Optional，因为它提
+/// 供了隐式转换为 `bool` 的功能，而我们想避免这种情况。此类用于实现三态 `parseOptional`
+/// 函数，这些函数在解析时可能会出现不应归因于“不存在”的失败模式。
+///
 /// This class implements `Optional` functionality for ParseResult. We don't
 /// directly use Optional here, because it provides an implicit conversion
 /// to 'bool' which we want to avoid. This class is used to implement tri-state
@@ -367,6 +371,11 @@ LogicalResult verifyElementwise(Operation *op);
 LogicalResult verifyIsIsolatedFromAbove(Operation *op);
 } // namespace impl
 
+/// 用于实现 traits 的辅助类。客户端不需要直接与此交互，因此其成员均受到保护。
+///
+/// `ConcreteType`: The concrete class type that this trait was attached to.
+/// `TraitType`: The type of the trait class that is being defined, for use with the CRTP.
+///
 /// Helper class for implementing traits.  Clients are not expected to interact
 /// with this directly, so its members are all protected.
 template <typename ConcreteType, template <typename> class TraitType>
@@ -1135,6 +1144,8 @@ public:
   }
 };
 
+/// 此类添加了运算可交换的特性。
+///
 /// This class adds property that the operation is commutative.
 template <typename ConcreteType>
 class IsCommutative : public TraitBase<ConcreteType, IsCommutative> {
@@ -1145,6 +1156,9 @@ public:
   }
 };
 
+/// 此类添加了运算为对合的属性。
+/// 这意味着一元到一元运算 "f" 满足 f(f(x)) = x。
+///
 /// This class adds property that the operation is an involution.
 /// This means a unary to unary operation "f" that satisfies f(f(x)) = x
 template <typename ConcreteType>
@@ -1167,6 +1181,9 @@ public:
   }
 };
 
+/// 此类添加了操作幂等的属性。
+/// 这意味着一元到一元运算 "f" 满足 f(f(x)) = f(x)，或二元运算 "g" 满足 g(x, x) = x。
+///
 /// This class adds property that the operation is idempotent.
 /// This means a unary to unary operation "f" that satisfies f(f(x)) = f(x),
 /// or a binary operation "g" that satisfies g(x, x) = x.
@@ -1191,6 +1208,8 @@ public:
   }
 };
 
+/// 此类验证指定 op 的所有操作数是否具有浮点类型、向量或其张量。
+///
 /// This class verifies that all operands of the specified op have a float type,
 /// a vector thereof, or a tensor thereof.
 template <typename ConcreteType>
@@ -1202,6 +1221,8 @@ public:
   }
 };
 
+/// 此类验证指定操作的所有操作数是否具有无符号整数或索引类型、其向量或其张量。
+///
 /// This class verifies that all operands of the specified op have a signless
 /// integer or index type, a vector thereof, or a tensor thereof.
 template <typename ConcreteType>
@@ -1213,6 +1234,8 @@ public:
   }
 };
 
+/// 此类验证指定操作的所有操作数是否具有相同的类型。
+///
 /// This class verifies that all operands of the specified op have the same
 /// type.
 template <typename ConcreteType>
@@ -1223,6 +1246,9 @@ public:
   }
 };
 
+/// 此类为已知为常量类型的操作子集提供 API。这些操作是无副作用的操作，只有一个结
+/// 果，且没有操作数，并且始终可以折叠为特定属性值。
+///
 /// This class provides the API for a sub-set of ops that are known to be
 /// constant-like. These are non-side effecting operations with one result and
 /// zero operands that can always be folded to a specific attribute value.
@@ -1242,6 +1268,8 @@ public:
   }
 };
 
+/// 此类提供已知与上述隔离的操作的 API。
+///
 /// This class provides the API for ops that are known to be isolated from
 /// above.
 template <typename ConcreteType>
@@ -1253,6 +1281,21 @@ public:
   }
 };
 
+/// Holding operations 的 region 的 trait，为多面体优化目的定义了新的范围。任何
+/// 'index' 类型的 SSA 值，只要主导此类操作或在此类操作的顶层使用，就会自动成为该
+/// 操作定义的多面体范围的有效符号。
+///
+/// 有关更多详细信息，请参阅 `Traits.md#AffineScope`。
+///
+/// 此特性由 region holding operations 所具有，这些操作为多面体优化和特别是 affine 
+/// 方言定义了新的范围。任何 'index' 类型的 SSA 值，只要它们主导此类操作，或定义在
+/// 此类操作的顶层，或作为此类操作的区域参数出现，就会自动成为该操作定义的多面体范围
+/// 的有效符号。
+///
+/// 因此，此类 SSA 值可用作各种 affine 方言操作（如 affine.for、affine.load 和 
+/// affine.store）的操作数或索引操作数。具有此特性的操作所定义的多面体范围包括其区
+/// 域内的所有操作，但不包括嵌套在具有此特性的其他操作中的操作。
+///
 /// A trait of region holding operations that defines a new scope for polyhedral
 /// optimization purposes. Any SSA values of 'index' type that either dominate
 /// such an operation or are used at the top-level of such an operation
@@ -1364,6 +1407,31 @@ template <typename ConcrentType>
 struct MemRefsNormalizable
     : public TraitBase<ConcrentType, MemRefsNormalizable> {};
 
+/// 此特征标记向量或张量上的逐元素操作。
+///
+/// NOTE: 并非所有抽象意义上的 "elementwise" 操作都满足此特征。特别是，不允许广播行为。
+///
+/// `Elementwise` 操作必须满足以下属性：
+///
+/// 1. 如果任何结果是向量/张量，则至少一个操作数也必须是向量/张量。
+/// 2. 如果任何操作数是向量/张量，则必须至少有一个结果，并且所有结果都必须是向量/张量。
+/// 3. 所有操作数和结果向量/张量类型必须具有相同的形状。形状可能是动态的，在这种情况下，
+///    对于不匹配的形状，操作的行为是未定义的。
+/// 4. 操作必须对其向量/张量操作数和结果是 "elementwise"。当应用于单元素向量/张量时，
+///    每个元素的结果必须相同。
+///
+/// TODO: 避免对向量/张量进行硬编码，
+///       避免将此特性推广到新的 interface `ElementwiseTypeInterface` ，该接口描述
+///       操作是逐元素的容器类型。
+///
+/// 基本原理：
+/// - 1. 和 2. 保证定义明确的迭代空间，并排除 0 个非标量操作数或 0 个非标量结果的情况，
+///   这会使迭代空间的通用定义复杂化。
+/// - 3. 保证可以跨具有相同模式的标量/向量/张量进行折叠，否则将需要大量特殊处理类型不
+///   匹配。
+/// - 4. 保证不需要错误处理。高级方言应该在降低到 "elementwise" 操作之前具体化任何所
+///   需的保护或错误处理代码。
+///
 /// This trait tags element-wise ops on vectors or tensors.
 ///
 /// NOTE: Not all ops that are "elementwise" in some abstract sense satisfy this
@@ -1403,6 +1471,12 @@ struct Elementwise : public TraitBase<ConcreteType, Elementwise> {
   }
 };
 
+/// 此特征标记可以系统标量的 `Elementwise` 操作。然后，所有向量/张量操作数和结果都将
+/// 替换为相应元素类型的标量。从语义上讲，这是对向量/张量的单个元素的操作。
+///
+/// 基本原理：允许根据相同操作对标量的行为定义元素操作的向量/张量语义。这为 IR 转换提
+/// 供了一个创建的过程，例如，从张量操作创建标量循环体。
+///
 /// This trait tags `Elementwise` operatons that can be systematically
 /// scalarized. All vector/tensor operands and results are then replaced by
 /// scalars of the respective element type. Semantically, this is the operation

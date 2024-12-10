@@ -13,6 +13,15 @@
 #include <optional>
 
 namespace llvm {
+/// 此类表示一种表示成功或失败的有效方法。在适当的情况下，它应该优于使用 `bool`，因为
+/// 它避免了在解释 bool 结果时出现的所有歧义。
+///
+/// 此类标记为 NODISCARD 以确保结果得到处理。用户可以使用 `(void)` 明确丢弃结果，例
+/// 如 `(void)functionThatReturnsALogicalResult();`。
+///
+/// 鉴于此类的预期性质，通常不应将其用作经常忽略结果的函数的结果。此类旨在与下面的实用
+/// 函数结合使用。
+///
 /// This class represents an efficient way to signal success or failure. It
 /// should be preferred over the use of `bool` when appropriate, as it avoids
 /// all of the ambiguity that arises in interpreting a boolean result. This
@@ -70,11 +79,17 @@ inline bool succeeded(LogicalResult Result) { return Result.succeeded(); }
 /// to a failure value.
 inline bool failed(LogicalResult Result) { return Result.failed(); }
 
+/// 此类支持表示失败结果或类型为 `T` 的有效值。这允许与 LogicalResult 集成，同时在成
+/// 功路径上提供值。
+///
 /// This class provides support for representing a failure result, or a valid
 /// value of type `T`. This allows for integrating with LogicalResult, while
 /// also providing a value on the success path.
 template <typename T> class [[nodiscard]] FailureOr : public std::optional<T> {
 public:
+  /// 允许从 LogicalResult 构造。结果必须失败。
+  /// 成功结果应使用类型 `T` 的适当实例。
+  ///
   /// Allow constructing from a LogicalResult. The result *must* be a failure.
   /// Success results should use a proper instance of type `T`.
   FailureOr(LogicalResult Result) {
@@ -105,6 +120,13 @@ inline auto success(T &&Y) {
   return FailureOr<std::decay_t<T>>(std::forward<T>(Y));
 }
 
+/// 此类表示解析类操作的成功/失败，这些操作认为使用 `||` 将可失败操作链接在一起很重要。
+/// 这是 `LogicalResult` 的扩展版本，允许显式转换为 bool。
+///
+/// 此类不应用于一般错误处理情况 - 我们更倾向于使用 `succeeded`/`failed` 谓词保持逻
+/// 辑明确。但是，如果没有这个，传统的 monadic 样式解析逻辑有时会被样板所吞没，因此我
+/// 们为重要的狭隘情况提供这个。
+///
 /// This class represents success/failure for parsing-like operations that find
 /// it important to chain together failable operations with `||`.  This is an
 /// extended version of `LogicalResult` that allows for explicit conversion to
