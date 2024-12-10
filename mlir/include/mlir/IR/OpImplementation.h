@@ -29,6 +29,8 @@ class Builder;
 // AsmDialectResourceHandle
 //===----------------------------------------------------------------------===//
 
+/// 这个类代表方言资源条目的不透明句柄。
+///
 /// This class represents an opaque handle to a dialect resource entry.
 class AsmDialectResourceHandle {
 public:
@@ -39,12 +41,18 @@ public:
     return resource == other.resource;
   }
 
+  /// 返回指向引用资源的不透明指针。
+  ///
   /// Return an opaque pointer to the referenced resource.
   void *getResource() const { return resource; }
 
+  /// 返回指向引用资源的 Type ID。
+  ///
   /// Return the type ID of the resource.
   TypeID getTypeID() const { return opaqueID; }
 
+  /// 返回指向引用资源的所属方言。
+  ///
   /// Return the dialect that owns the resource.
   Dialect *getDialect() const { return dialect; }
 

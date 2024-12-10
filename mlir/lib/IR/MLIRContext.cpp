@@ -118,6 +118,9 @@ struct ScopedWriterLock {
 //===----------------------------------------------------------------------===//
 
 namespace mlir {
+/// 这是 MLIRContext 类的实现，使用 pImpl 习语。此类对此文件完全私有，因此所有内容都是
+/// 公开的。
+///
 /// This is the implementation of the MLIRContext class, using the pImpl idiom.
 /// This class is completely private to this file, so everything is public.
 class MLIRContextImpl {
@@ -126,6 +129,8 @@ public:
   // Debugging
   //===--------------------------------------------------------------------===//
 
+  /// 用于处理通过此上下文分派的动作的动作处理程序。
+  ///
   /// An action handler for handling actions that are dispatched through this
   /// context.
   std::function<void(function_ref<void()>, const tracing::Action &)>
@@ -140,6 +145,9 @@ public:
   // Options
   //===--------------------------------------------------------------------===//
 
+  /// 在大多数情况下，创建未注册方言的操作是不可取的，这表明编译器配置错误。此选项可以
+  /// 检测此类用例。
+  ///
   /// In most cases, creating operation in unregistered dialect is not desired
   /// and indicate a misconfiguration of the compiler. This option enables to
   /// detect such use cases
@@ -155,10 +163,14 @@ public:
   std::atomic<int> multiThreadedExecutionContext{0};
 #endif
 
+  /// 是否操作应该附加到通过 Operation::emit 方法打印的诊断。
+  ///
   /// If the operation should be attached to diagnostics printed via the
   /// Operation::emit methods.
   bool printOpOnDiagnostic = true;
 
+  /// 是否在发出诊断时应该附加当前堆栈跟踪。
+  ///
   /// If the current stack trace should be attached when emitting diagnostics.
   bool printStackTraceOnDiagnostic = false;
 
@@ -166,6 +178,9 @@ public:
   // Other
   //===--------------------------------------------------------------------===//
 
+  /// 这指向并行处理 MLIR 任务时使用的线程池。启用多线程时，它不能为 nullptr。否则，
+  /// 如果禁用多线程，并且线程池不是使用 `setThreadPool` 从外部提供的，则它将为 nullptr。
+  ///
   /// This points to the ThreadPool used when processing MLIR tasks in parallel.
   /// It can't be nullptr when multi-threading is enabled. Otherwise if
   /// multi-threading is disabled, and the threadpool wasn't externally provided
@@ -176,16 +191,24 @@ public:
   /// destruction with the context.
   std::unique_ptr<llvm::ThreadPoolInterface> ownedThreadPool;
 
+  /// 用于 AbstractAttribute 和 AbstractType 对象的分配器。
+  ///
   /// An allocator used for AbstractAttribute and AbstractType objects.
   llvm::BumpPtrAllocator abstractDialectSymbolAllocator;
 
+  /// 这是从操作名称到描述该操作的操作信息的映射。
+  ///
   /// This is a mapping from operation name to the operation info describing it.
   llvm::StringMap<std::unique_ptr<OperationName::Impl>> operations;
 
+  /// 专用于已注册操作的操作信息的一个 vector。
+  ///
   /// A vector of operation info specifically for registered operations.
   llvm::DenseMap<TypeID, RegisteredOperationName> registeredOperations;
   llvm::StringMap<RegisteredOperationName> registeredOperationsByName;
 
+  /// 这是一个已注册操作的排序容器，用于确定性和高效的 `getRegisteredOperations` 实现。
+  ///
   /// This is a sorted container of registered operations for a deterministic
   /// and efficient `getRegisteredOperations` implementation.
   SmallVector<RegisteredOperationName, 0> sortedRegisteredOperations;
@@ -200,6 +223,8 @@ public:
   DenseMap<StringRef, std::unique_ptr<Dialect>> loadedDialects;
   DialectRegistry dialectsRegistry;
 
+  /// 访问操作信息时使用的互斥锁。
+  ///
   /// A mutex used when accessing operation information.
   llvm::sys::SmartRWMutex<true> operationInfoMutex;
 
@@ -207,6 +232,8 @@ public:
   // Affine uniquing
   //===--------------------------------------------------------------------===//
 
+  // 仿射表达式、映射和整数集唯一。
+  //
   // Affine expression, map and integer set uniquing.
   StorageUniquer affineUniquer;
 
@@ -420,6 +447,10 @@ DiagnosticEngine &MLIRContext::getDiagEngine() { return getImpl().diagEngine; }
 // Dialect and Operation Registration
 //===----------------------------------------------------------------------===//
 
+/// 将给定方言注册表的内容附加到与此上下文关联的注册表中。
+///
+/// Append the contents of the given dialect registry to the registry
+/// associated with this context.
 void MLIRContext::appendDialectRegistry(const DialectRegistry &registry) {
   if (registry.isSubsetOf(impl->dialectsRegistry))
     return;
@@ -614,11 +645,19 @@ DynamicDialect *MLIRContext::getOrLoadDynamicDialect(
   return dialect;
 }
 
+/// 遍历当前 context 创建的方言列表并加载它们。
 void MLIRContext::loadAllAvailableDialects() {
   for (StringRef name : getAvailableDialects())
     getOrLoadDialect(name);
 }
 
+/// 返回上下文注册表的哈希值，可用于粗略指示上下文注册表的状态是否已更改。上下文注册
+/// 表与已加载的方言及其实体（属性、操作、类型等）相关。
+///
+/// Returns a hash of the registry of the context that may be used to give
+/// a rough indicator of if the state of the context registry has changed. The
+/// context registry correlates to loaded dialects and their entities
+/// (attributes, operations, types, etc.).
 llvm::hash_code MLIRContext::getRegistryHash() {
   llvm::hash_code hash(0);
   // Factor in number of loaded dialects, attributes, operations, types.
@@ -629,6 +668,9 @@ llvm::hash_code MLIRContext::getRegistryHash() {
   return hash;
 }
 
+/// 如果我们允许为未注册的方言创建操作，则返回 true。
+///
+/// Return true if we allow to create operation for unregistered dialects.
 bool MLIRContext::allowsUnregisteredDialects() {
   return impl->allowUnregisteredDialects;
 }
@@ -791,6 +833,9 @@ void Dialect::addAttribute(TypeID typeID, AbstractAttribute &&attrInfo) {
 // AbstractAttribute
 //===----------------------------------------------------------------------===//
 
+/// 在 MLIRContext 中查找指定的抽象属性并返回对它的引用。获取使用提供的 typeid
+/// 注册属性的方言。
+///
 /// Get the dialect that registered the attribute with the provided typeid.
 const AbstractAttribute &AbstractAttribute::lookup(TypeID typeID,
                                                    MLIRContext *context) {

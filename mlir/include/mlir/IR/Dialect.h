@@ -28,6 +28,11 @@ class Type;
 // Dialect
 //===----------------------------------------------------------------------===//
 
+/// 方言是 MLIR 操作、类型和属性的组，以及与整个组相关的行为。例如，挂接到其他系统中
+/// 以进行常量折叠、接口、用于 asm 打印的默认命名类型等。
+///
+/// 方言对象的实例加载到特定的 MLIRContext 中。
+///
 /// Dialects are groups of MLIR operations, types and attributes, as well as
 /// behavior associated with the entire group.  For example, hooks into other
 /// systems for constant folding, interfaces, default named types for asm
@@ -45,6 +50,8 @@ public:
 
   virtual ~Dialect();
 
+  /// 该实用函数返回是否给定的字符串是有效的方言命名空间。
+  ///
   /// Utility function that returns if the given string is a valid dialect
   /// namespace
   static bool isValidNamespace(StringRef str);
@@ -56,16 +63,28 @@ public:
   /// Returns the unique identifier that corresponds to this dialect.
   TypeID getTypeID() const { return dialectID; }
 
+  /// 如果此方言允许未注册的操作，即以方言命名空间为前缀但未使用 addOperation 注册
+  /// 的操作，则返回 true。
+  ///
   /// Returns true if this dialect allows for unregistered operations, i.e.
   /// operations prefixed with the dialect namespace but not registered with
   /// addOperation.
   bool allowsUnknownOperations() const { return unknownOpsAllowed; }
 
+  /// 如果此方言允许未注册类型（即以方言命名空间为前缀但未使用 addType 注册的类型），
+  /// 则返回 true。这些类型用 OpaqueType 表示。
+  ///
   /// Return true if this dialect allows for unregistered types, i.e., types
   /// prefixed with the dialect namespace but not registered with addType.
   /// These are represented with OpaqueType.
   bool allowsUnknownTypes() const { return unknownTypesAllowed; }
 
+  /// 注册[整个方言范围]的规范化模式。此方法仅应用于注册在[概念上不属于方言中任何单
+  /// 个操作]的规范化模式。（在这种情况下，使用 op 的规范化器。）例如，op 接口的规
+  /// 范化模式应在此处注册。
+  ///
+  /// 参考：https://sunfishcode.github.io/blog/2018/10/22/Canonicalization.html
+  ///
   /// Register dialect-wide canonicalization patterns. This method should only
   /// be used to register canonicalization patterns that do not conceptually
   /// belong to any single operation in the dialect. (In that case, use the op's
@@ -73,6 +92,11 @@ public:
   /// be registered here.
   virtual void getCanonicalizationPatterns(RewritePatternSet &results) const {}
 
+  /// 注册钩子，用于根据给定的属性值实现具有所需结果类型的[单个常量操作]。此方法应使
+  /// 用提供的构建器来创建操作而不更改插入位置。生成的操作应为常量，即单个结果、零个
+  /// 操作数、无副作用等。成功时，此钩子应返回生成的值以表示常量值。否则，失败时应返
+  /// 回 null。
+  ///
   /// Registered hook to materialize a single constant operation from a given
   /// attribute value with the desired resultant type. This method should use
   /// the provided builder to create the operation without changing the
@@ -89,10 +113,15 @@ public:
   // Parsing Hooks
   //===--------------------------------------------------------------------===//
 
+  /// 解析注册到此方言的属性。如果 `type` 非空，则它指的是属性的预期类型。
+  ///
   /// Parse an attribute registered to this dialect. If 'type' is nonnull, it
   /// refers to the expected type of the attribute.
   virtual Attribute parseAttribute(DialectAsmParser &parser, Type type) const;
 
+  /// 打印已注册到此方言的属性。注意：此方法不需要打印属性的类型，因为它始终由调用
+  /// 者打印。
+  ///
   /// Print an attribute registered to this dialect. Note: The type of the
   /// attribute need not be printed by this method as it is always printed by
   /// the caller.
@@ -100,14 +129,22 @@ public:
     llvm_unreachable("dialect has no registered attribute printing hook");
   }
 
+  /// 解析注册到此方言的类型。
+  ///
   /// Parse a type registered to this dialect.
   virtual Type parseType(DialectAsmParser &parser) const;
 
+  /// 打印已注册到此方言的 type。
+  ///
   /// Print a type registered to this dialect.
   virtual void printType(Type, DialectAsmPrinter &) const {
     llvm_unreachable("dialect has no registered type printing hook");
   }
 
+  /// 返回用于解析已注册到此方言的操作的钩子（如果有）。默认情况下，这将查找已注册的操
+  /// 作并返回在 RegisteredOperationName 上注册的 `parse()` 方法。方言可以覆盖此行
+  /// 为并处理未注册的操作。
+  ///
   /// Return the hook to parse an operation registered to this dialect, if any.
   /// By default this will lookup for registered operations and return the
   /// `parse()` method registered on the RegisteredOperationName. Dialects can
@@ -115,6 +152,9 @@ public:
   virtual std::optional<ParseOpHook>
   getParseOperationHook(StringRef opName) const;
 
+  /// 打印注册到此方言的操作。此钩子被调用用于已注册的操作，这些操作不会覆盖 `print()`
+  /// 方法来定义自己的自定义程序集。
+  ///
   /// Print an operation registered to this dialect.
   /// This hook is invoked for registered operation which don't override the
   /// `print()` method to define their own custom assembly.
@@ -125,6 +165,10 @@ public:
   // Verification Hooks
   //===--------------------------------------------------------------------===//
 
+  /// 根据给定操作中“regionIndex”处区域的“argIndex”处的参数验证此方言的属性。如果
+  /// 验证失败，则返回失败，否则返回成功。此钩子可以从任何包含区域的操作中选择性地调
+  /// 用。
+  ///
   /// Verify an attribute from this dialect on the argument at 'argIndex' for
   /// the region at 'regionIndex' on the given operation. Returns failure if
   /// the verification failed, success otherwise. This hook may optionally be
@@ -134,6 +178,10 @@ public:
                                                  unsigned argIndex,
                                                  NamedAttribute);
 
+  /// 根据给定操作中“regionIndex”处区域的“resultIndex”处的参数验证此方言的属性。如
+  /// 果验证失败，则返回失败，否则返回成功。此钩子可以从任何包含区域的操作中选择性地
+  /// 调用。
+  ///
   /// Verify an attribute from this dialect on the result at 'resultIndex' for
   /// the region at 'regionIndex' on the given operation. Returns failure if
   /// the verification failed, success otherwise. This hook may optionally be
@@ -143,6 +191,8 @@ public:
                                                     unsigned resultIndex,
                                                     NamedAttribute);
 
+  /// 在给定操作上验证此方言的属性。如果验证失败则返回失败，否则返回成功。
+  ///
   /// Verify an attribute from this dialect on the given operation. Returns
   /// failure if the verification failed, success otherwise.
   virtual LogicalResult verifyOperationAttribute(Operation *, NamedAttribute) {
@@ -153,6 +203,8 @@ public:
   // Interfaces
   //===--------------------------------------------------------------------===//
 
+  /// 如果已注册，则查找给定 interface ID 的 interface，否则为 nullptr。
+  ///
   /// Lookup an interface for the given ID if one is registered, otherwise
   /// nullptr.
   DialectInterface *getRegisteredInterface(TypeID interfaceID) {
@@ -175,6 +227,8 @@ public:
         getRegisteredInterface(InterfaceT::getInterfaceID()));
   }
 
+  /// 如果已注册，则查找给定 ID 的 op interface，否则为 nullptr。
+  ///
   /// Lookup an op interface for the given ID if one is registered, otherwise
   /// nullptr.
   virtual void *getRegisteredInterfaceForOp(TypeID interfaceID,
@@ -188,9 +242,13 @@ public:
         getRegisteredInterfaceForOp(InterfaceT::getInterfaceID(), opName));
   }
 
+  /// 用这个方言实例注册一个 dialect interface。
+  ///
   /// Register a dialect interface with this dialect instance.
   void addInterface(std::unique_ptr<DialectInterface> interface);
 
+  /// 用这个方言实例注册一个集合的 dialect interface。
+  ///
   /// Register a set of dialect interfaces with this dialect instance.
   template <typename... Args>
   void addInterfaces() {
@@ -203,6 +261,9 @@ public:
     return *interface;
   }
 
+  /// 声明将实现给定的接口，但延迟注册。承诺的接口类型可以是任何类型的接口，而不仅仅
+  /// 是方言接口，即它也可以是 AttributeInterface/OpInterface/TypeInterface 等。
+  ///
   /// Declare that the given interface will be implemented, but has a delayed
   /// registration. The promised interface type can be an interface of any type
   /// not just a dialect interface, i.e. it may also be an
@@ -213,6 +274,9 @@ public:
         {TypeID::get<ConcreteT>(), InterfaceT::getInterfaceID()});
   }
 
+  // 为多种类型声明相同的接口。示例：
+  // `declaredPromisedInterfaces<FunctionOpInterface, MyFuncType1, MyFuncType2>()`
+  //
   // Declare the same interface for multiple types.
   // Example:
   // declarePromisedInterfaces<FunctionOpInterface, MyFuncType1, MyFuncType2>()
@@ -221,6 +285,10 @@ public:
     (declarePromisedInterface<InterfaceT, ConcreteT>(), ...);
   }
 
+  /// 检查尝试使用的给定接口是否是此方言的承诺接口，但尚未实现。如果是，则发出致命
+  /// 错误。`interfaceName` 是一个可选字符串，其中包含更易于用户阅读的接口名称（
+  /// 例如类名）。
+  ///
   /// Checks if the given interface, which is attempting to be used, is a
   /// promised interface of this dialect that has yet to be implemented. If so,
   /// emits a fatal error. `interfaceName` is an optional string that contains a
@@ -239,6 +307,9 @@ public:
     }
   }
 
+  /// 检查给定的接口（尝试附加到此方言拥有的构造）是否是此方言尚未实现的承诺接口。如
+  /// 果是，则解析接口承诺。
+  ///
   /// Checks if the given interface, which is attempting to be attached to a
   /// construct owned by this dialect, is a promised interface of this dialect
   /// that has yet to be implemented. If so, it resolves the interface promise.
@@ -247,6 +318,8 @@ public:
     unresolvedPromisedInterfaces.erase({interfaceRequestorID, interfaceID});
   }
 
+  /// 检查是否已针对接口/请求者对做出承诺。
+  ///
   /// Checks if a promise has been made for the interface/requestor pair.
   bool hasPromisedInterface(TypeID interfaceRequestorID,
                             TypeID interfaceID) const {
@@ -254,6 +327,8 @@ public:
         {interfaceRequestorID, interfaceID});
   }
 
+  /// 检查是否已针对接口/请求者对做出承诺。
+  ///
   /// Checks if a promise has been made for the interface/requestor pair.
   template <typename ConcreteT, typename InterfaceT>
   bool hasPromisedInterface() const {
@@ -262,6 +337,12 @@ public:
   }
 
 protected:
+  /// 构造函数的参数为该方言采用唯一的命名空间以及要绑定到的上下文。
+  /// 注意：命名空间不得包含 '.' 字符。
+  /// 注意：属于该方言的所有操作的名称都必须以命名空间开头，后跟 '.' 字符。
+  /// 示例：
+  ///       - "tf" 表示 TensorFlow 操作，如 "tf.add"。
+  ///
   /// The constructor takes a unique namespace for this dialect as well as the
   /// context to bind to.
   /// Note: The namespace must not contain '.' characters.
@@ -271,6 +352,8 @@ protected:
   ///       - "tf" for the TensorFlow ops like "tf.add".
   Dialect(StringRef name, MLIRContext *context, TypeID id);
 
+  /// 派生类使用此方法将其操作添加到集合中。
+  ///
   /// This method is used by derived classes to add their operations to the set.
   ///
   template <typename... Args>
@@ -283,6 +366,8 @@ protected:
         0, (RegisteredOperationName::insert<Args>(*this), 0)...};
   }
 
+  /// 为方言注册一组 type classes。
+  ///
   /// Register a set of type classes with this dialect.
   template <typename... Args>
   void addTypes() {
@@ -293,11 +378,16 @@ protected:
     (void)std::initializer_list<int>{0, (addType<Args>(), 0)...};
   }
 
+  /// 使用此方言注册类型实例。
+  /// 一般不建议使用此方法，而建议使用 `addTypes<CustomType>()`。
+  ///
   /// Register a type instance with this dialect.
   /// The use of this method is in general discouraged in favor of
   /// 'addTypes<CustomType>()'.
   void addType(TypeID typeID, AbstractType &&typeInfo);
 
+  /// 用这种方言注册一组 attribute classes。
+  ///
   /// Register a set of attribute classes with this dialect.
   template <typename... Args>
   void addAttributes() {
@@ -308,6 +398,9 @@ protected:
     (void)std::initializer_list<int>{0, (addAttribute<Args>(), 0)...};
   }
 
+  /// 用这种方言注册一个属性实例。
+  /// 一般不鼓励使用此方法，而建议使用 `addAttributes<CustomAttr>()`。
+  ///
   /// Register an attribute instance with this dialect.
   /// The use of this method is in general discouraged in favor of
   /// 'addAttributes<CustomAttr>()'.
@@ -339,29 +432,45 @@ private:
     detail::TypeUniquer::registerType<T>(context);
   }
 
+  /// 该方言的命名空间。
+  ///
   /// The namespace of this dialect.
   StringRef name;
 
+  /// 派生的 Op 类的唯一标识符，在上下文中使用以允许多次注册相同的方言。
+  ///
   /// The unique identifier of the derived Op class, this is used in the context
   /// to allow registering multiple times the same dialect.
   TypeID dialectID;
 
+  /// 这是拥有此 Dialect 对象的上下文。
+  ///
   /// This is the context that owns this Dialect object.
   MLIRContext *context;
 
+  /// 标志指定此方言是否支持未注册的操作，即以方言命名空间为前缀但未使用 addOperation 
+  /// 注册的操作。
+  ///
   /// Flag that specifies whether this dialect supports unregistered operations,
   /// i.e. operations prefixed with the dialect namespace but not registered
   /// with addOperation.
   bool unknownOpsAllowed = false;
 
+  /// 指定此方言是否允许未注册类型的标志，即以方言命名空间为前缀但未使用 addType 注册
+  /// 的类型。这些类型用 OpaqueType 表示。
+  ///
   /// Flag that specifies whether this dialect allows unregistered types, i.e.
   /// types prefixed with the dialect namespace but not registered with addType.
   /// These types are represented with OpaqueType.
   bool unknownTypesAllowed = false;
 
+  /// 注册的方言接口的集合。
+  ///
   /// A collection of registered dialect interfaces.
   DenseMap<TypeID, std::unique_ptr<DialectInterface>> registeredInterfaces;
 
+  /// 方言（或其构造，即属性/操作/类型/等）承诺实现但尚未提供实现的一组接口。
+  ///
   /// A set of interfaces that the dialect (or its constructs, i.e.
   /// Attributes/Operations/Types/etc.) has promised to implement, but has yet
   /// to provide an implementation for.

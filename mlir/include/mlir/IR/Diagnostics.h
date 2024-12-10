@@ -149,6 +149,9 @@ inline raw_ostream &operator<<(raw_ostream &os, const DiagnosticArgument &arg) {
 // Diagnostic
 //===----------------------------------------------------------------------===//
 
+/// 此类包含向 DiagnosticEngine 报告诊断所需的所有信息。通常不应直接构建它，而应通过
+/// InFlightDiagnostic 传递使用。
+///
 /// This class contains all of the information necessary to report a diagnostic
 /// to the DiagnosticEngine. It should generally not be constructed directly,
 /// and instead used transitively via InFlightDiagnostic.
@@ -406,6 +409,9 @@ private:
 // DiagnosticEngine
 //===----------------------------------------------------------------------===//
 
+/// 此类是诊断的主要接口。DiagnosticEngine 管理诊断处理程序的注册以及诊断发射的核心 API
+/// 不应直接构建此类，而应通过 MLIRContext 实例进行交互。
+///
 /// This class is the main interface for diagnostics. The DiagnosticEngine
 /// manages the registration of diagnostic handlers as well as the core API for
 /// diagnostic emission. This class should not be constructed directly, but

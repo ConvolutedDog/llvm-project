@@ -24,6 +24,8 @@ namespace mlir {
 // AbstractAttribute
 //===----------------------------------------------------------------------===//
 
+/// 此类包含已注册属性的所有实例所共有的所有静态信息。
+///
 /// This class contains all of the static information common to all instances of
 /// a registered Attribute.
 class AbstractAttribute {
@@ -34,6 +36,8 @@ public:
   using ReplaceImmediateSubElementsFn =
       function_ref<Attribute(Attribute, ArrayRef<Attribute>, ArrayRef<Type>)>;
 
+  /// 在 MLIRContext 中查找指定的抽象属性并返回对它的引用。
+  ///
   /// Look up the specified abstract attribute in the MLIRContext and return a
   /// reference to it.
   static const AbstractAttribute &lookup(TypeID typeID, MLIRContext *context);
@@ -127,11 +131,16 @@ private:
             typename UniquerT, template <typename T> class... Traits>
   friend class detail::StorageUserBase;
 
+  /// 在 MLIRContext 中查找指定的抽象属性并返回指向它的（可变）指针。如果在上下文中
+  /// 找不到该属性，则返回空指针。
+  ///
   /// Look up the specified abstract attribute in the MLIRContext and return a
   /// (mutable) pointer to it. Return a null pointer if the attribute could not
   /// be found in the context.
   static AbstractAttribute *lookupMutable(TypeID typeID, MLIRContext *context);
 
+  /// 这是此属性注册到的方言。
+  ///
   /// This is the dialect that this attribute was registered to.
   const Dialect &dialect;
 
@@ -147,9 +156,13 @@ private:
   /// Function to replace the immediate sub-elements of this attribute.
   ReplaceImmediateSubElementsFn replaceImmediateSubElementsFn;
 
+  /// 派生属性类的唯一标识符。
+  ///
   /// The unique identifier of the derived Attribute class.
   const TypeID typeID;
 
+  /// 此属性的唯一名称。该字符串不属于 context，因此该字符串的生存期应比 MLIR context 长。
+  ///
   /// The unique name of this attribute. The string is not owned by the context,
   /// so the lifetime of this string should outlive the MLIR context.
   const StringRef name;
