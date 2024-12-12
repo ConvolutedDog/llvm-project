@@ -297,6 +297,8 @@ static void emitDialectDecl(Dialect &dialect, raw_ostream &os) {
        << "::" << dialect.getCppClassName() << ")\n";
 }
 
+/// Command Line: "gen-dialect-decls"
+/// Description: "Generate dialect declarations"
 static bool emitDialectDecls(const RecordKeeper &records, raw_ostream &os) {
   emitSourceFileHeader("Dialect Declarations", os, records);
 

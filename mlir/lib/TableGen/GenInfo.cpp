@@ -16,11 +16,30 @@ using namespace mlir;
 
 static llvm::ManagedStatic<std::vector<GenInfo>> generatorRegistry;
 
+/// GenRegistration 提供了一个全局初始化程序，用于注册生成器函数。
+///
+/// Usage:
+///
+///   // At namespace scope.
+///   static GenRegistration Print("print", "Print records", [](...){...});
+///
+/// GenRegistration provides a global initializer that registers a generator
+/// function.
+///
+/// Usage:
+///
+///   // At namespace scope.
+///   static GenRegistration Print("print", "Print records", [](...){...});
 GenRegistration::GenRegistration(StringRef arg, StringRef description,
                                  const GenFunction &function) {
+  // `(arg, description, function)` is implicitly converted to a
+  // `GenInfo` object.
   generatorRegistry->emplace_back(arg, description, function);
 }
 
+/// 为每个注册的生成器添加命令行选项。
+///
+/// Adds command line option for each registered generator.
 GenNameParser::GenNameParser(llvm::cl::Option &opt)
     : llvm::cl::parser<const GenInfo *>(opt) {
   for (const auto &kv : *generatorRegistry) {

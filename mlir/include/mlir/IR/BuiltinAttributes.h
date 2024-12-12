@@ -42,9 +42,14 @@ struct StringAttrStorage;
 //===----------------------------------------------------------------------===//
 
 namespace detail {
+/// 一对原始指针和一个布尔标志，表示该指针是否包含 splat.
+///
 /// Pair of raw pointer and a boolean flag of whether the pointer holds a splat,
 using DenseIterPtrAndSplat = std::pair<const char *, bool>;
 
+/// 用于索引的 DenseElementsAttr 迭代器的 Impl 迭代器，用于记录针对 splat 属性的
+/// 情况进行调整的数据指针和数据索引。
+///
 /// Impl iterator for indexed DenseElementsAttr iterators that records a data
 /// pointer and data index that is adjusted for the case of a splat attribute.
 template <typename ConcreteT, typename T, typename PointerT = T *,
@@ -77,6 +82,8 @@ template <typename T>
 struct is_complex_t<std::complex<T>> : public std::true_type {};
 } // namespace detail
 
+/// 表示对密集向量或张量对象的引用的属性。
+///
 /// An attribute that represents a reference to a dense vector or tensor
 /// object.
 class DenseElementsAttr : public Attribute {
@@ -1015,6 +1022,20 @@ struct DistinctAttrStorage;
 class DistinctAttributeUniquer;
 } // namespace detail
 
+/// 将 referenced attribute 与 unique identifier 相关联的属性。每次调用 create 函数
+/// 都会分配一个新的不同的 attribute instance。attribute instance 的地址用作临时标识
+/// 符。与 SSA values 的名称类似，最终标识符是在 pretty printing 期间生成的。这种延迟
+/// 编号可确保打印的标识符是确定性的，即使并行创建多个不同 attribute instance 也是如此。
+///
+/// Examples:
+///
+/// #distinct = distinct[0]<42.0 : f32>
+/// #distinct1 = distinct[1]<42.0 : f32>
+/// #distinct2 = distinct[2]<array<i32: 10, 42>>
+///
+/// NOTE: 无法使用 ODS 定义不同属性，因为它使用了无法从 ODS 设置的自定义不同属性唯一标
+/// 识符。
+///
 /// An attribute that associates a referenced attribute with a unique
 /// identifier. Every call to the create function allocates a new distinct
 /// attribute instance. The address of the attribute instance serves as a
@@ -1038,9 +1059,13 @@ class DistinctAttr
 public:
   using Base::Base;
 
+  /// 返回 referenced attribute。
+  ///
   /// Returns the referenced attribute.
   Attribute getReferencedAttr() const;
 
+  /// 创建一个独特的属性，将 referenced attribute 与 unique identifier 关联。
+  ///
   /// Creates a distinct attribute that associates a referenced attribute with a
   /// unique identifier.
   static DistinctAttr create(Attribute referencedAttr);

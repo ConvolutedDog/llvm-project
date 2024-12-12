@@ -23,6 +23,13 @@ namespace mlir {
 // ElementsAttr
 //===----------------------------------------------------------------------===//
 namespace detail {
+/// 此类支持对 ElementsAttr 的元素范围进行索引。
+///
+/// 它用于不透明地包装连续范围（通过 "ElementsAttrIndexer::contiguous" ）或不连续范围
+///（通过 "ElementsAttrIndexer::nonContiguous" ）。连续范围是一种数组式范围，其中所有
+/// 元素在内存中按顺序排列。不连续范围意味着不连续，元素甚至可能在索引时实现，例如对于 
+/// mapped_range 的情况。
+///
 /// This class provides support for indexing into the element range of an
 /// ElementsAttr. It is used to opaquely wrap either a contiguous range, via
 /// `ElementsAttrIndexer::contiguous`, or a non-contiguous range, via

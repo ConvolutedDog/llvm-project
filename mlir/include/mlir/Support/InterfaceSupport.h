@@ -24,6 +24,44 @@ namespace detail {
 // Interface
 //===----------------------------------------------------------------------===//
 
+/// 此类表示 abstract interface。interface 是一种简化机制 for attaching concept
+/// based polymorphism to a class hierarchy (基于 concept 的多态性附加到类结构上)。
+/// interface 由两个组件组成：
+/// * The derived interface class: This is what users interact with, and invoke
+///   methods on.
+/// * An interface `Trait` class: This is the class that is attached to the
+///   object implementing the interface. It is the mechanism with which models
+///   are specialized.
+///
+/// Derived interfaces types 必须提供以下模板类型：
+/// * ConcreteType: The CRTP derived type.
+/// * ValueT: The opaque type the derived interface operates on. For example
+///           `Operation*` for operation interfaces, or `Attribute` for
+///           attribute interfaces.
+/// * Traits: A class that contains definitions for a 'Concept' and a 'Model'
+///           class. The 'Concept' class defines an abstract virtual interface,
+///           where as the 'Model' class implements this interface for a
+///           specific derived T type. Both of these classes *must* not contain
+///           non-static data. A simple example is shown below:
+///
+/// ```c++
+///    struct ExampleInterfaceTraits {
+///      struct Concept {
+///        virtual unsigned getNumInputs(T t) const = 0;
+///      };
+///      template <typename DerivedT> class Model {
+///        unsigned getNumInputs(T t) const final {
+///          return cast<DerivedT>(t).getNumInputs();
+///        }
+///      };
+///    };
+/// ```
+///
+/// * BaseType：interface 所需的基类型。这是一个为 `ValueT` 值提供特定功能的类。例
+///   如，将包装 `Operation*` 的特定 `Op` 用作 `OpInterface`。
+/// * BaseTrait：interface trait 的基类型。这是用于 interface trait 的基类，该特征
+///   将附加到实现此 interface 的每个 "ValueT" 实例。
+///
 /// This class represents an abstract interface. An interface is a simplified
 /// mechanism for attaching concept based polymorphism to a class hierarchy. An
 /// interface is comprised of two components:
@@ -152,6 +190,8 @@ struct count_if_t_impl<Pred, N, T, Us...>
 template <template <class> class Pred, typename... Ts>
 using count_if_t = count_if_t_impl<Pred, 0, Ts...>;
 
+/// 此类提供了给定 `Interface` 类型与其 concept 的特定实现之间的有效映射。
+///
 /// This class provides an efficient mapping between a given `Interface` type,
 /// and a particular implementation of its concept.
 class InterfaceMap {

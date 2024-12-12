@@ -24,12 +24,23 @@ include "mlir/IR/DialectBase.td"
 //===----------------------------------------------------------------------===//
 // Base attribute definition
 
+// 所有属性的基类。
+//
 // Base class for all attributes.
 class Attr<Pred condition, string summary = ""> :
     AttrConstraint<condition, summary> {
   code storageType = ?; // The backing mlir::Attribute type
+                        // 支持 mlir::Attribute 类型
   code returnType = ?;  // The underlying C++ value type
+                        // 底层 C++ 值类型
 
+  // 从存储类型转换为返回类型的调用表达式。例如，枚举可以存储为 int，但返回为枚举类。
+  //
+  // 格式：$_self 将扩展为 attribute。
+  //
+  // 例如，`IntegerAttr val` 的 `$_self.getValue().getSExtValue()` 将扩展为
+  // `getAttrOfType<IntegerAttr>("val").getValue().getSExtValue()`。
+  //
   // The call expression to convert from the storage type to the return
   // type. For example, an enum can be stored as an int but returned as an
   // enum class.

@@ -19,6 +19,8 @@
 namespace mlir {
 class GenInfo;
 
+/// 为每个注册的生成器添加命令行选项。
+///
 /// Adds command line option for each registered generator.
 struct GenNameParser : public llvm::cl::parser<const GenInfo *> {
   GenNameParser(llvm::cl::Option &opt);

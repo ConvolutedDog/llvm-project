@@ -16,6 +16,11 @@ namespace mlir {
 class AsmState;
 class StringAttr;
 
+/// 属性是操作的已知常量值。
+///
+/// Attribute 类的实例是对永久键值对的引用，这些键值对具有 MLIRContext 拥有的不可变
+/// 唯一键。因此，Attribute 是底层存储指针的薄包装器。属性通常通过值传递。
+///
 /// Attributes are known-constant values of operations.
 ///
 /// Instances of the Attribute class are references to immortal key-value pairs
@@ -24,6 +29,8 @@ class StringAttr;
 /// passed by value.
 class Attribute {
 public:
+  /// 用于实现属性的实用程序类。
+  ///
   /// Utility class for implementing attributes.
   template <typename ConcreteType, typename BaseType, typename StorageType,
             template <typename T> class... Traits>

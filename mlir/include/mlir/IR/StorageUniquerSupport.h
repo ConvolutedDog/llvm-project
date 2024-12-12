@@ -26,6 +26,9 @@ class Location;
 class MLIRContext;
 
 namespace detail {
+/// 实用方法用于生成 callback，可用于在检查存储对象的构造不变量时生成诊断。此方法以
+/// 外部方式定义，以避免需要包含 Location.h。
+///
 /// Utility method to generate a callback that can be used to generate a
 /// diagnostic when checking the construction invariants of a storage object.
 /// This is defined out-of-line to avoid the need to include Location.h.
@@ -38,6 +41,9 @@ getDefaultDiagnosticEmitFn(const Location &loc);
 // StorageUserTraitBase
 //===----------------------------------------------------------------------===//
 
+/// 用于实现 traits for storage classes 的辅助类。客户端不需要直接与此交互，因此
+/// 其成员均受到保护。
+///
 /// Helper class for implementing traits for storage classes. Clients are not
 /// expected to interact with this directly, so its members are all protected.
 template <typename ConcreteType, template <typename> class TraitType>
@@ -87,6 +93,9 @@ inline bool hasTrait(TypeID traitID) {
 }
 } // namespace storage_user_base_impl
 
+/// 用于实现由 StorageUniquer 唯一化的 users of storage classes 的实用程序
+/// 类。客户端不应直接与此类交互。
+///
 /// Utility class for implementing users of storage classes uniqued by a
 /// StorageUniquer. Clients are not expected to interact with this class
 /// directly.
@@ -96,23 +105,34 @@ class StorageUserBase : public BaseT, public Traits<ConcreteT>... {
 public:
   using BaseT::BaseT;
 
+  /// 具体属性类的实用程序声明。
+  ///
   /// Utility declarations for the concrete attribute class.
   using Base = StorageUserBase<ConcreteT, BaseT, StorageT, UniquerT, Traits...>;
   using ImplType = StorageT;
   using HasTraitFn = bool (*)(TypeID);
 
+  /// 返回 concrete type (`ConcreteT`) 的唯一标识符。
+  ///
   /// Return a unique identifier for the concrete type.
   static TypeID getTypeID() { return TypeID::get<ConcreteT>(); }
 
+  /// 提供 'classof' 的实现，将所提供值的 type id 与 concrete type (`ConcreteT`)
+  /// 的 ID 进行比较。
+  ///
   /// Provide an implementation of 'classof' that compares the type id of the
   /// provided value with that of the concrete type.
   template <typename T>
   static bool classof(T val) {
+    // std::is_convertible<ConcreteT, T>::value 用于检查 ConcreteT 类型是否可以
+    // 转换成 T 类型，确保类型转换的有效性。
     static_assert(std::is_convertible<ConcreteT, T>::value,
                   "casting from a non-convertible type");
     return val.getTypeID() == getTypeID();
   }
 
+  /// 返回注册到此存储用户的 interfaces 的 interface map。不应直接使用。
+  ///
   /// Returns an interface map for the interfaces registered to this storage
   /// user. This should not be used directly.
   static detail::InterfaceMap getInterfaceMap() {
