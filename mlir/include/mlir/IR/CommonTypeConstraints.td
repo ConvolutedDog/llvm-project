@@ -20,24 +20,36 @@ include "mlir/IR/DialectBase.td"
 // Common predicates
 //===----------------------------------------------------------------------===//
 
+// 类型是否为 VectorType。
+// 暂时明确禁止 0-D 向量，直到我们有 good enough coverage。
+//
 // Whether a type is a VectorType.
 // Explicitly disallow 0-D vectors for now until we have good enough coverage.
 def IsVectorTypePred : And<[CPred<"::llvm::isa<::mlir::VectorType>($_self)">,
                             CPred<"::llvm::cast<::mlir::VectorType>($_self).getRank() > 0">]>;
 
+// 允许逐步过渡到 0-D 向量的临时向量类型克隆。
+//
 // Temporary vector type clone that allows gradual transition to 0-D vectors.
 // TODO: Remove this when all ops support 0-D vectors.
 def IsVectorOfAnyRankTypePred : CPred<"::llvm::isa<::mlir::VectorType>($_self)">;
 
+// 类型是否为定长VectorType。
+//
 // Whether a type is a fixed-length VectorType.
 def IsFixedVectorTypePred : CPred<[{::llvm::isa<::mlir::VectorType>($_self) &&
                                   !::llvm::cast<VectorType>($_self).isScalable()}]>;
 
+// 类型是否为可扩展的 VectorType。
+//
 // Whether a type is a scalable VectorType.
 def IsVectorTypeWithAnyDimScalablePred
         : CPred<[{::llvm::isa<::mlir::VectorType>($_self) &&
                   ::llvm::cast<VectorType>($_self).isScalable()}]>;
 
+// 类型是否为可扩展的 VectorType，带有 a single trailing scalable dimension。这里
+// 是指仅有最后一个维度可扩展，其他维度不可扩展。
+//
 // Whether a type is a scalable VectorType, with a single trailing scalable dimension.
 // Examples:
 // Valid:
@@ -51,44 +63,84 @@ def IsVectorTypeWithOnlyTrailingDimScalablePred : And<[
   CPred<"!llvm::is_contained(::llvm::cast<::mlir::VectorType>($_self).getScalableDims().drop_back(), true)">
 ]>;
 
+// 类型是否为 VectorType，并且所有维度是否可扩展。
+//
 // Whether a type is a VectorType and all dimensions are scalable.
 def IsVectorTypeWithAllDimsScalablePred : And<[
   IsVectorTypePred,
   CPred<[{::llvm::cast<::mlir::VectorType>($_self).allDimsScalable()}]>
 ]>;
 
+// 类型是否为 TensorType。
+//
 // Whether a type is a TensorType.
 def IsTensorTypePred : CPred<"::llvm::isa<::mlir::TensorType>($_self)">;
 
+// 类型是否为 MemRefType。
+//
 // Whether a type is a MemRefType.
 def IsMemRefTypePred : CPred<"::llvm::isa<::mlir::MemRefType>($_self)">;
 
+// 类型是否为 UnrankedMemRefType。
+//
 // Whether a type is an UnrankedMemRefType
 def IsUnrankedMemRefTypePred
         : CPred<"::llvm::isa<::mlir::UnrankedMemRefType>($_self)">;
 
+// 类型是否为 UnrankedTensorType。
+//
 // Whether a type is an UnrankedTensorType
 def IsUnrankedTensorTypePred
         : CPred<"::llvm::isa<::mlir::UnrankedTensorType>($_self)">;
 
+// 类型是否为 RankedTensorType。
+//
 // Whether a type is a RankedTensorType
 def IsRankedTensorTypePred
         : CPred<"::llvm::isa<::mlir::RankedTensorType>($_self)">;
 
+// 类型是否为 BaseMemRefType。
+//
 // Whether a type is a BaseMemRefType
 def IsBaseMemRefTypePred
         : CPred<"::llvm::isa<::mlir::BaseMemRefType>($_self)">;
 
+// 类型是否为 ShapedType。
+//
 // Whether a type is a ShapedType.
 def IsShapedTypePred : CPred<"::llvm::isa<::mlir::ShapedType>($_self)">;
 
+// 对于 ShapedType，验证它是否具有静态形状。
+//
 // For a ShapedType, verify that it has a static shape.
 def HasStaticShapePred :
         CPred<"::llvm::cast<::mlir::ShapedType>($_self).hasStaticShape()">;
 
+// 类型是否为 TupleType。
+//
 // Whether a type is a TupleType.
 def IsTupleTypePred : CPred<"::llvm::isa<::mlir::TupleType>($_self)">;
 
+// 类型是否具有 ValueSemantics trait。
+//
+// ValueSemantics trait 用于标记具有值语义的类型。值语义意味着：
+//
+// 可拷贝性: 该类型的对象可以被拷贝，并且拷贝后的对象与原对象相互独立，修改其中一个不
+//          会影响另一个。
+// 可赋值性: 该类型的对象可以被赋值，赋值后，被赋值的对象拥有与赋值对象相同的值，
+//          但两者仍然独立。
+//
+// 作用:
+// 1. 优化: 编译器可以利用值语义进行优化。例如，如果一个函数的参数具有值语义，编译器
+//         可以将参数传递给函数的拷贝，而不是传递引用或指针。这可以避免不必要的内存
+//         访问和潜在的副作用。
+// 2. 代码生成: 在某些情况下，代码生成器需要知道一个类型是否具有值语义。例如，如果一 
+//             个类型具有值语义，代码生成器可以生成更简单的代码来拷贝或赋值该类型的
+//             对象。
+// 3. 类型检查: 类型检查器可以使用 ValueSemantics 特征来确保某些操作只应用于具有值
+//             语义的类型。例如，某些操作可能只对可以安全拷贝的类型有效。
+//
+//
 // Whether a type has a ValueSemantics trait.
 def HasValueSemanticsPred : CPred<"$_self.hasTrait<::mlir::ValueSemantics>()">;
 
@@ -96,6 +148,8 @@ def HasValueSemanticsPred : CPred<"$_self.hasTrait<::mlir::ValueSemantics>()">;
 // Type definitions
 //===----------------------------------------------------------------------===//
 
+// 一种类型，带有类型约束。
+//
 // A type, carries type constraints.
 class Type<Pred condition, string descr = "",
            string cppType = "::mlir::Type"> :
@@ -104,6 +158,8 @@ class Type<Pred condition, string descr = "",
   string builderCall = "";
 }
 
+// 允许为现有 Type 定义提供备用名称和摘要。
+//
 // Allows providing an alternative name and summary to an existing type def.
 class TypeAlias<Type t, string summary = t.summary> :
     Type<t.predicate, summary, t.cppType> {
@@ -111,6 +167,8 @@ class TypeAlias<Type t, string summary = t.summary> :
   let builderCall = t.builderCall;
 }
 
+// 一种特定方言的 Type。
+//
 // A type of a specific dialect.
 class DialectType<Dialect d, Pred condition, string descr = "",
                   string cppType = "::mlir::Type"> :
@@ -118,6 +176,8 @@ class DialectType<Dialect d, Pred condition, string descr = "",
   Dialect dialect = d;
 }
 
+// 可变 type 约束。它扩展为零个或多个基类型。此类用于支持可变 operands/results。
+//
 // A variadic type constraint. It expands to zero or more of the base type. This
 // class is used for supporting variadic operands/results.
 class Variadic<Type type> : TypeConstraint<type.predicate,
@@ -127,6 +187,10 @@ class Variadic<Type type> : TypeConstraint<type.predicate,
   int minSize = 0;
 }
 
+// 嵌套可变 Type 约束。它扩展为 base type 的零个或多个可变范围。此类用于支持可变
+// operands/results。`variadicSegmentAttrName` 应对应于提供内部可变操作数组大
+// 小的 DenseI32ArrayAttr 参数的名称。
+//
 // A nested variadic type constraint. It expands to zero or more variadic ranges
 // of the base type. This class is used for supporting variadic operands and
 // results. `variadicSegmentAttrName` should correspond to the name of an
@@ -137,6 +201,8 @@ class VariadicOfVariadic<Type type, string variadicSegmentAttrName>
   string segmentAttrName = variadicSegmentAttrName;
 }
 
+// 可选类型约束。它扩展为零个或一个基类型。此类用于支持可选操作数/结果。
+//
 // An optional type constraint. It expands to either zero or one of the base
 // type. This class is used for supporting optional operands/results.
 class Optional<Type type> : TypeConstraint<type.predicate, type.summary,
@@ -144,6 +210,11 @@ class Optional<Type type> : TypeConstraint<type.predicate, type.summary,
   Type baseType = type;
 }
 
+// 可以使用 MLIR::Builder 构造的类型。
+// 请注意，这不会从 Type “继承”，因为它需要为可构建和不可构建的情况复制 Type 子类，
+// 以避免菱形 “继承”。
+// TODO：我们可以将其扩展为更通用的 “可构建” 特性，使某些类型和某些属性可构建。
+//
 // A type that can be constructed using MLIR::Builder.
 // Note that this does not "inherit" from Type because it would require
 // duplicating Type subclasses for buildable and non-buildable cases to avoid
@@ -151,10 +222,15 @@ class Optional<Type type> : TypeConstraint<type.predicate, type.summary,
 // TODO: we may extend this to a more general 'Buildable' trait, making some
 // Types and some Attrs buildable.
 class BuildableType<code builder> {
+  // 调用构建器调用（如果指定）来构造 BuildableType。
+  //
   // The builder call to invoke (if specified) to construct the BuildableType.
   code builderCall = builder;
 }
 
+// 当且仅当作为参数传递的类型是可构建的，该类型才是可构建的。
+// 这旨在供容器类型之类的类型使用，这些类型只有当其元素的类型可构建时才是可构建的。
+//
 // A type that's buildable iff the type passed as an argument is buildable.
 // This is intended for use by types like container types, which are only
 // buildable if the type of their elements is buildable.
@@ -162,6 +238,8 @@ class SameBuildabilityAs<Type type, code builder> {
   code builderCall = !if(!empty(type.builderCall), "", builder);
 }
 
+// 任何类型均可。
+//
 // Any type at all.
 def AnyType : Type<CPred<"true">, "any type">;
 
@@ -170,11 +248,22 @@ def NoneType : Type<CPred<"::llvm::isa<::mlir::NoneType>($_self)">, "none type",
                     "::mlir::NoneType">,
       BuildableType<"$_builder.getType<::mlir::NoneType>()">;
 
+// 给定列表中的任何类型
+//
 // Any type from the given list
 class AnyTypeOf<list<Type> allowedTypeList, string summary = "",
                 string cppType = "::mlir::Type"> : Type<
+    // `Or<!foreach(allowedtype, allowedTypeList, allowedtype.predicate)>` 是 Type
+    // 基类的构造函数参数之一。`!foreach` 是一个宏，用于遍历 `allowedTypeList` 中的每个
+    // `allowedtype`，并提取它们的 `.predicate`。`Or` 将所有 `predicate` 的结果进行逻
+    // 辑或运算。这意味着只要 `allowedTypeList` 中的任何一个类型的 `predicate` 返回值为
+    // 真，整个条件就为真。
+    //
     // Satisfy any of the allowed types' conditions.
     Or<!foreach(allowedtype, allowedTypeList, allowedtype.predicate)>,
+    // `!if(!eq(summary, ""), ...)` 是一个条件宏。它的意思是如果 `summary` 不为空，则
+    // 使用 `!interleave` 宏将 `allowedTypeList` 中每个类型的 `summary` 用 " or " 连
+    // 接起来。否则，使用提供的 `summary` 参数。这部分用于生成类型的描述字符串。
     !if(!eq(summary, ""),
         !interleave(!foreach(t, allowedTypeList, t.summary), " or "),
         summary),
@@ -182,6 +271,8 @@ class AnyTypeOf<list<Type> allowedTypeList, string summary = "",
   list<Type> allowedTypes = allowedTypeList;
 }
 
+// 满足所有给定类型约束的类型。
+//
 // A type that satisfies the constraints of all given types.
 class AllOfType<list<Type> allowedTypeList, string summary = "",
                 string cppType = "::mlir::Type"> : Type<
@@ -194,6 +285,8 @@ class AllOfType<list<Type> allowedTypeList, string summary = "",
   list<Type> allowedTypes = allowedTypeList;
 }
 
+// 满足附加谓词的类型。
+//
 // A type that satisfies additional predicates.
 class ConfinedType<Type type, list<Pred> predicates, string summary = "",
                    string cppType = type.cppType> : Type<
@@ -203,18 +296,25 @@ class ConfinedType<Type type, list<Pred> predicates, string summary = "",
     list<Pred> predicateList = predicates;
 }
 
+// 整数类型。
+//
 // Integer types.
 
+// 任何整数类型，无论其宽度和符号语义如何。
+//
 // Any integer type irrespective of its width and signedness semantics.
 def AnyInteger : Type<CPred<"::llvm::isa<::mlir::IntegerType>($_self)">, "integer",
                       "::mlir::IntegerType">;
 
+// 任何具有特定宽度的整数类型（无论符号语义如何）。
+//
 // Any integer type (regardless of signedness semantics) of a specific width.
 class AnyI<int width>
     : Type<CPred<"$_self.isInteger(" # width # ")">, width # "-bit integer"> {
   int bitwidth = width;
 }
 
+// 具有任意给定宽度列表之一的整数类型。
 class AnyIntOfWidths<list<int> widths> :
     AnyTypeOf<!foreach(w, widths, AnyI<w>),
               !interleave(widths, "/") # "-bit integer",
@@ -226,11 +326,15 @@ def AnyI16 : AnyI<16>;
 def AnyI32 : AnyI<32>;
 def AnyI64 : AnyI<64>;
 
+// 任何 signless integer type，无论其宽度如何。
+//
 // Any signless integer type irrespective of its width.
 def AnySignlessInteger : Type<
   CPred<"$_self.isSignlessInteger()">, "signless integer",
         "::mlir::IntegerType">;
 
+// 特定宽度的 signless integer type。
+//
 // Signless integer type of a specific width.
 class I<int width>
     : Type<CPred<"$_self.isSignlessInteger(" # width # ")">,
@@ -239,6 +343,7 @@ class I<int width>
   int bitwidth = width;
 }
 
+// 具有任意给定宽度列表之一的 signless integer type。
 class SignlessIntOfWidths<list<int> widths> :
     AnyTypeOf<!foreach(w, widths, I<w>),
               !interleave(widths, "/") # "-bit signless integer">;
@@ -250,10 +355,14 @@ def I32 : I<32>;
 def I64 : I<64>;
 def I128 : I<128>;
 
+// 任何 signed integer type，无论其宽度如何。
+//
 // Any signed integer type irrespective of its width.
 def AnySignedInteger : Type<
   CPred<"$_self.isSignedInteger()">, "signed integer">;
 
+// 特定宽度的 signed integer type。
+//
 // Signed integer type of a specific width.
 class SI<int width>
     : Type<CPred<"$_self.isSignedInteger(" # width # ")">,
@@ -263,6 +372,7 @@ class SI<int width>
   int bitwidth = width;
 }
 
+// 具有任意给定宽度列表之一的 signed integer type。
 class SignedIntOfWidths<list<int> widths> :
     AnyTypeOf<!foreach(w, widths, SI<w>),
               !interleave(widths, "/") # "-bit signed integer">;
@@ -273,10 +383,14 @@ def SI16 : SI<16>;
 def SI32 : SI<32>;
 def SI64 : SI<64>;
 
+// 任何 unsigned integer type，无论其宽度如何。
+//
 // Any unsigned integer type irrespective of its width.
 def AnyUnsignedInteger : Type<
   CPred<"$_self.isUnsignedInteger()">, "unsigned integer">;
 
+// 特定宽度的 unsigned integer type。
+//
 // Unsigned integer type of a specific width.
 class UI<int width>
     : Type<CPred<"$_self.isUnsignedInteger(" # width # ")">,
@@ -286,6 +400,7 @@ class UI<int width>
   int bitwidth = width;
 }
 
+// 具有任意给定宽度列表之一的 unsigned integer type。
 class UnsignedIntOfWidths<list<int> widths> :
     AnyTypeOf<!foreach(w, widths, UI<w>),
               !interleave(widths, "/") # "-bit unsigned integer">;
@@ -301,16 +416,24 @@ def Index : Type<CPred<"::llvm::isa<::mlir::IndexType>($_self)">, "index",
                  "::mlir::IndexType">,
             BuildableType<"$_builder.getIndexType()">;
 
+// 任何 signless integer type 或 Index type。
+//
 // Any signless integer type or index type.
 def AnySignlessIntegerOrIndex : Type<CPred<"$_self.isSignlessIntOrIndex()">,
                                      "signless integer or index">;
 
+// 浮点类型。
+//
 // Floating point types.
 
+// 任何 float type，无论其宽度如何。
+//
 // Any float type irrespective of its width.
 def AnyFloat : Type<CPred<"::llvm::isa<::mlir::FloatType>($_self)">, "floating-point",
                     "::mlir::FloatType">;
 
+// 特定宽度的 float type。
+//
 // Float type of a specific width.
 class F<int width>
     : Type<CPred<"$_self.isF" # width # "()">,
@@ -319,6 +442,7 @@ class F<int width>
   int bitwidth = width;
 }
 
+// 具有任意给定宽度列表之一的 float type。
 class FloatOfWidths<list<int> widths> :
     AnyTypeOf<!foreach(w, widths, F<w>),
               !interleave(widths, "/") # "-bit float">;
@@ -378,15 +502,23 @@ class OpaqueType<string dialect, string name, string summary>
                   "$_builder.getStringAttr(\"" # dialect # "\"), \""
                   # name # "\")">;
 
+// 函数类型
+// 
 // Function Type
 
+// 任何函数类型。
+//
 // Any function type.
 def FunctionType : Type<CPred<"::llvm::isa<::mlir::FunctionType>($_self)">,
                               "function type", "::mlir::FunctionType">;
 
+// 容器类型是一种其中嵌入了另一种类型的类型。
+//
 // A container type is a type that has another type embedded within it.
 class ContainerType<Type etype, Pred containerPred, code elementTypeCall,
                     string descr, string cppType = "::mlir::Type"> :
+    // 首先，检查容器谓词。然后将提​​取的元素代入元素类型检查器中。
+    //
     // First, check the container predicate.  Then, substitute the extracted
     // element into the element type checker.
     Type<And<[containerPred,
@@ -394,6 +526,27 @@ class ContainerType<Type etype, Pred containerPred, code elementTypeCall,
                 etype.predicate>]>,
          descr # " of " # etype.summary # " values", cppType>;
 
+// 支持不同 Type 的元素组成的容器类型。这个容器接受一个 Type 列表。
+// ```
+// class ShapedContainerTypeX<list<Type> allowedTypes,
+//                           Pred containerPred, string descr,
+//                           string cppType = "::mlir::Type"> :
+//     Type<And<[containerPred,
+//               Concat<"[](::mlir::Type elementType) { return ",
+//                 SubstLeaves<"$_self", "elementType",
+//                 AnyTypeOf<allowedTypes>.predicate>,
+//                 "; }(::llvm::cast<::mlir::ShapedType>($_self).getElementType())">]>,
+//          descr # " ofxxx " # AnyTypeOf<allowedTypes>.summary # " valuesxxx", cppType>;
+// 
+// def IntTypeX : ShapedContainerTypeX<[I1, I8], CPred<"true">, "", "">;
+// ```
+// 会生成：
+// ```
+//   ([](::mlir::Type elementType) { 
+//     return ((elementType.isSignlessInteger(1))) || 
+//            ((elementType.isSignlessInteger(8))); 
+//   }(::llvm::cast<::mlir::ShapedType>(type).getElementType()))
+// ```
 class ShapedContainerType<list<Type> allowedTypes,
                           Pred containerPred, string descr,
                           string cppType = "::mlir::Type"> :
@@ -404,9 +557,13 @@ class ShapedContainerType<list<Type> allowedTypes,
                 "; }(::llvm::cast<::mlir::ShapedType>($_self).getElementType())">]>,
          descr # " of " # AnyTypeOf<allowedTypes>.summary # " values", cppType>;
 
+// Shaped type 是否具有 rank。
+//
 // Whether a shaped type is ranked.
 def HasRankPred : CPred<"::llvm::cast<::mlir::ShapedType>($_self).hasRank()">;
 
+// Shaped type 是否具有指定的 rank 之一。
+//
 // Whether a shaped type has one of the specified ranks.
 class HasAnyRankOfPred<list<int> ranks> : And<[
     HasRankPred,
@@ -415,37 +572,51 @@ class HasAnyRankOfPred<list<int> ranks> : And<[
                          == }]
                       # rank>)>]>;
 
+// Shaped type 的 rank 是否大于或等于指定的 rank 。
+//
 // Whether a shaped type has a rank greater than or equal of the specified rank.
 class HasRankGreaterOrEqualPred<int rank> : And<[
     HasRankPred,
     CPred<[{::llvm::cast<::mlir::ShapedType>($_self).getRank() >= }] # rank>
 ]>;
 
+// 具有值语义的容器。
+//
 // Container with value semantics.
 class ValueSemanticsContainerOf<list<Type> allowedTypes> :
   ShapedContainerType<allowedTypes, HasValueSemanticsPred,
   "container with value semantics">;
 
+// 向量类型。
+//
 // Vector types.
 
+// 类型为 VectorType 的向量 Type，暂时明确禁止 0-D 向量。
 class VectorOf<list<Type> allowedTypes> :
   ShapedContainerType<allowedTypes, IsVectorTypePred, "vector",
                       "::mlir::VectorType">;
 
+// 类型为 VectorType 的向量 Type，允许 0-D 向量。
+//
 // Temporary vector type clone that allows gradual transition to 0-D vectors.
 // TODO: Remove this when all ops support 0-D vectors.
 class VectorOfAnyRankOf<list<Type> allowedTypes> :
   ShapedContainerType<allowedTypes, IsVectorOfAnyRankTypePred, "vector",
                       "::mlir::VectorType">;
 
+// 类型为定长 VectorType 的向量 Type。
 class FixedVectorOf<list<Type> allowedTypes> :
   ShapedContainerType<allowedTypes, IsFixedVectorTypePred,
           "fixed-length vector", "::mlir::VectorType">;
 
+// 类型为可扩展的 VectorType 的向量 Type。
 class ScalableVectorOf<list<Type> allowedTypes> :
   ShapedContainerType<allowedTypes, IsVectorTypeWithAnyDimScalablePred,
           "scalable vector", "::mlir::VectorType">;
 
+// 类型为可扩展的 VectorType 的向量 Type，带有 a single trailing scalable dimension。
+// 这里是指仅有最后一个维度可扩展，其他维度不可扩展。
+//
 // Any vector with a single trailing scalable dimension, with an element type in
 // the `allowedTypes` list.
 //
@@ -455,6 +626,8 @@ class VectorWithTrailingDimScalableOf<list<Type> allowedTypes> :
   ShapedContainerType<allowedTypes, IsVectorTypeWithOnlyTrailingDimScalablePred,
           "trailing scalable vector", "::mlir::VectorType">;
 
+// 向量元素的数量是否来自给定的 `allowedRanks` 列表。
+//
 // Whether the number of elements of a vector is from the given
 // `allowedRanks` list
 class IsVectorOfRankPred<list<int> allowedRanks> :
@@ -464,6 +637,8 @@ class IsVectorOfRankPred<list<int> allowedRanks> :
                            == }]
                          # allowedlength>)>]>;
 
+// 固定长度向量的元素数量是否来自给定的 `allowedRanks` 列表。
+//
 // Whether the number of elements of a fixed-length vector is from the given
 // `allowedRanks` list
 class IsFixedVectorOfRankPred<list<int> allowedRanks> :
@@ -473,6 +648,8 @@ class IsFixedVectorOfRankPred<list<int> allowedRanks> :
                            == }]
                          # allowedlength>)>]>;
 
+// 可缩放向量的元素数量是否来自给定的 `allowedRanks` 列表。
+//
 // Whether the number of elements of a scalable vector is from the given
 // `allowedRanks` list
 class IsScalableVectorOfRankPred<list<int> allowedRanks> :
@@ -482,21 +659,30 @@ class IsScalableVectorOfRankPred<list<int> allowedRanks> :
                            == }]
                          # allowedlength>)>]>;
 
+// 任何向量，其 rank 来自给定的 `allowedRanks` 列表
+//
 // Any vector where the rank is from the given `allowedRanks` list
 class VectorOfRank<list<int> allowedRanks> : Type<
   IsVectorOfRankPred<allowedRanks>,
   " of ranks " # !interleave(allowedRanks, "/"), "::mlir::VectorType">;
 
+// 任何固定长度的向量，其 rank 来自给定的 `allowedRanks` 列表
+//
 // Any fixed-length vector where the rank is from the given `allowedRanks` list
 class FixedVectorOfRank<list<int> allowedRanks> : Type<
   IsFixedVectorOfRankPred<allowedRanks>,
   " of ranks " # !interleave(allowedRanks, "/"), "::mlir::VectorType">;
 
+// 任何可扩展的向量，其等级来自给定的 `allowedRanks` 列表
+//
 // Any scalable vector where the rank is from the given `allowedRanks` list
 class ScalableVectorOfRank<list<int> allowedRanks> : Type<
   IsScalableVectorOfRankPred<allowedRanks>,
   " of ranks " # !interleave(allowedRanks, "/"), "::mlir::VectorType">;
 
+// 任何向量，其 rank 来自给定的 `allowedRanks` 列表，类型来自给定的 `allowedTypes`
+// 列表
+//
 // Any vector where the rank is from the given `allowedRanks` list and the type
 // is from the given `allowedTypes` list
 class VectorOfRankAndType<list<int> allowedRanks,
@@ -505,6 +691,9 @@ class VectorOfRankAndType<list<int> allowedRanks,
   VectorOf<allowedTypes>.summary # VectorOfRank<allowedRanks>.summary,
   "::mlir::VectorType">;
 
+// 固定宽度向量，其 rank 来自给定的 `allowedRanks` 列表，类型来自给定的 `allowedTypes`
+// 列表
+//
 // Fixed-width vector where the rank is from the given `allowedRanks` list and
 // the type is from the given `allowedTypes` list
 class FixedVectorOfRankAndType<list<int> allowedRanks,
@@ -513,6 +702,8 @@ class FixedVectorOfRankAndType<list<int> allowedRanks,
   FixedVectorOf<allowedTypes>.summary # VectorOfRank<allowedRanks>.summary,
   "::mlir::VectorType">;
 
+// 向量的元素数量是否来自给定的 `allowedLengths` 列表。
+//
 // Whether the number of elements of a vector is from the given
 // `allowedLengths` list
 class IsVectorOfLengthPred<list<int> allowedLengths> :
@@ -522,6 +713,8 @@ class IsVectorOfLengthPred<list<int> allowedLengths> :
                            == }]
                          # allowedlength>)>]>;
 
+// 固定长度向量的元素数量是否来自给定的 `allowedLengths` 列表。
+//
 // Whether the number of elements of a fixed-length vector is from the given
 // `allowedLengths` list
 class IsFixedVectorOfLengthPred<list<int> allowedLengths> :
@@ -531,6 +724,8 @@ class IsFixedVectorOfLengthPred<list<int> allowedLengths> :
                            == }]
                          # allowedlength>)>]>;
 
+// 可缩放向量的元素数量是否来自给定的 `allowedLengths` 列表。
+//
 // Whether the number of elements of a scalable vector is from the given
 // `allowedLengths` list
 class IsScalableVectorOfLengthPred<list<int> allowedLengths> :
@@ -551,6 +746,9 @@ class NormalizeIndex<int value> {
     !add(value, 1)  /* value + 1 if positive*/);
 }
 
+// 形状的第 n 个 dim 是否包含在 `allowedSizes` 内。
+// `n` 索引的负值代表反向查找的 index。
+//
 // Whether the n-th dim of the shape is contained within `allowedSizes`.
 // Negative values for `n` index in reverse.
 //
@@ -574,10 +772,14 @@ class IsNthDimSizeIsOneOfPred<int n, list<int> allowedSizes>
               "" # n)
         # "))">]>;
 
+// 向量的形状是否与给定的 `shape` 列表匹配。
+//
 // Whether the shape of a vector matches the given `shape` list.
 class IsVectorOfShape<list<int> shape>
   : CPred<"::llvm::cast<::mlir::VectorType>($_self).getShape() == ArrayRef<int64_t>({" # !interleave(shape, ", ") # "})">;
 
+// 任何向量，其元素数量来自给定的 `allowedLengths` 列表。
+//
 // Any vector where the number of elements is from the given
 // `allowedLengths` list
 class VectorOfLength<list<int> allowedLengths> : Type<
@@ -585,6 +787,8 @@ class VectorOfLength<list<int> allowedLengths> : Type<
   " of length " # !interleave(allowedLengths, "/"),
   "::mlir::VectorType">;
 
+// 任何固定长度的向量，其元素数量来自给定的 `allowedLengths` 列表
+//
 // Any fixed-length vector where the number of elements is from the given
 // `allowedLengths` list
 class FixedVectorOfLength<list<int> allowedLengths> : Type<
@@ -592,6 +796,8 @@ class FixedVectorOfLength<list<int> allowedLengths> : Type<
   " of length " # !interleave(allowedLengths, "/"),
   "::mlir::VectorType">;
 
+// 任何可缩放向量，其元素数量来自给定的 `allowedLengths` 列表
+//
 // Any scalable vector where the number of elements is from the given
 // `allowedLengths` list
 class ScalableVectorOfLength<list<int> allowedLengths> : Type<
@@ -599,6 +805,9 @@ class ScalableVectorOfLength<list<int> allowedLengths> : Type<
   " of length " # !interleave(allowedLengths, "/"),
   "::mlir::VectorType">;
 
+// 任何向量，其元素数量来自给定的 `allowedLengths` 列表，其 Type 来自给定的
+// `allowedTypes` 列表
+//
 // Any vector where the number of elements is from the given
 // `allowedLengths` list and the type is from the given `allowedTypes`
 // list
@@ -608,6 +817,9 @@ class VectorOfLengthAndType<list<int> allowedLengths,
   VectorOf<allowedTypes>.summary # VectorOfLength<allowedLengths>.summary,
   "::mlir::VectorType">;
 
+// 任何固定长度的向量，其中元素的数量来自给定的 `allowedLengths` 列表，类型来自
+// `allowedTypes` 列表
+//
 // Any fixed-length vector where the number of elements is from the given
 // `allowedLengths` list and the type is from the given `allowedTypes` list
 class FixedVectorOfLengthAndType<list<int> allowedLengths,
@@ -617,6 +829,9 @@ class FixedVectorOfLengthAndType<list<int> allowedLengths,
   FixedVectorOfLength<allowedLengths>.summary,
   "::mlir::VectorType">;
 
+// 任何可缩放向量，其元素数量来自给定的 `allowedLengths` 列表，类型来自
+// `allowedTypes` 列表
+//
 // Any scalable vector where the number of elements is from the given
 // `allowedLengths` list and the type is from the given `allowedTypes` list
 class ScalableVectorOfLengthAndType<list<int> allowedLengths,
@@ -626,6 +841,9 @@ class ScalableVectorOfLengthAndType<list<int> allowedLengths,
   ScalableVectorOfLength<allowedLengths>.summary,
   "::mlir::VectorType">;
 
+// 任何可缩放向量，其 rank 来自给定的 `allowedRanks` 列表，其元素数量来自给定的
+// `allowedLengths` 列表，类型来自 `allowedTypes` 列表
+//
 // Any scalable vector where the rank is from the given `allowedRanks` list and
 // the number of elements is from the given `allowedLengths` list and the type
 // is from the given `allowedTypes` list
@@ -639,6 +857,9 @@ class ScalableVectorOfRankAndLengthAndType<list<int> allowedRanks,
   ScalableVectorOfLength<allowedLengths>.summary,
   "::mlir::VectorType">;
 
+// 任何 ShapedType，其中第 n 个 dim 的大小包含在 `allowedSizes` 列表中。
+// 反向为 `n` 索引的负值。
+//
 // Any ShapedType where the size of the n-th dim is contained in `allowedSizes`.
 // Negative values for `n` index in reverse.
 class ShapedTypeWithNthDimOfSize<int n, list<int> allowedSizes> : Type<
@@ -646,6 +867,9 @@ class ShapedTypeWithNthDimOfSize<int n, list<int> allowedSizes> : Type<
   " with dim " # n # " having a size of {" # !interleave(allowedSizes, ", ") # "}",
   "::mlir::ShapedType">;
 
+// 任何具有单个尾随可扩展维度的可扩展向量，其中尾随维度的大小在 `allowedTrailingSizes`
+// 列表中，类型在 `allowedTypes` 列表中。
+//
 // Any scalable vector with a single trailing scalable dimensions, where the
 // size of the trailing dimension is in `allowedTrailingSizes` list, and the
 // type is in the `allowedTypes` list.
@@ -657,16 +881,22 @@ class VectorWithTrailingDimScalableOfSizeAndType<list<int> allowedTrailingSizes,
    ShapedTypeWithNthDimOfSize<-1, allowedTrailingSizes>.summary,
   "::mlir::VectorType">;
 
+// 任意类型的向量，不允许零维度
 def AnyVector : VectorOf<[AnyType]>;
+
+// 任意类型的向量，允许零维度
 // Temporary vector type clone that allows gradual transition to 0-D vectors.
 def AnyVectorOfAnyRank : VectorOfAnyRankOf<[AnyType]>;
 
+// 任意定长的向量
 def AnyFixedVector : FixedVectorOf<[AnyType]>;
 
+// 任意可扩展的向量
 def AnyScalableVector : ScalableVectorOf<[AnyType]>;
 
 // Shaped types.
 
+// 任意 ShapedType
 def AnyShaped: ShapedContainerType<[AnyType], IsShapedTypePred, "shaped",
                                    "::mlir::ShapedType">;
 
@@ -812,6 +1042,8 @@ class StaticShapeMemRefOf<list<Type> allowedTypes> :
 
 def AnyStaticShapeMemRef : StaticShapeMemRefOf<[AnyType]>;
 
+// 对于 MemRefType，验证它是否有步幅。
+//
 // For a MemRefType, verify that it has strides.
 def HasStridesPred : CPred<[{ isStrided(::llvm::cast<::mlir::MemRefType>($_self)) }]>;
 
