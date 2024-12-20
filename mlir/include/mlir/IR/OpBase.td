@@ -386,6 +386,14 @@ class Op<Dialect dialect, string mnemonic, list<Trait> props = []> {
   //   scf.for: Has one region for the loop body
   //   scf.while: Has two regions (condition and body)
   //
+  // Usage:
+  //   def XOp : Op<...> {
+  //     let regions = (region 
+  //       SizedRegion<1>:$thenRegion,
+  //       SizedRegion<2>:$elseRegion
+  //     );
+  //   }
+  //
   // The list of regions of the op. Default to 0 regions.
   dag regions = (region);
 
@@ -413,16 +421,50 @@ class Op<Dialect dialect, string mnemonic, list<Trait> props = []> {
   //       case 1: ^case1
   //   ]
   //
+  // Usage:
+  //   // Define two successors
+  //   let successors = (successor
+  //     AnySuccessor:$trueDest,    // Branch target if condition is true
+  //     AnySuccessor:$falseDest    // Branch target if condition is false
+  //   );
+  //
   // The list of successors of the op. Default to 0 successors.
   dag successors = (successor);
 
+  // 可以通过添加 an Attr member with the name and type of the attribute
+  // 将 attribute getters 添加到 Op。例如，添加 name 为 "value" 且 type 为
+  // "i32" 的 int attribute：
+  //   I32Attr value;
+  //
   // Attribute getters can be added to the op by adding an Attr member
   // with the name and type of the attribute. E.g., adding int attribute
   // with name "value" and type "i32":
   //   I32Attr value;
 
+  // 定义用于 building、parsing、printing、verification 的钩子。
+  //
   // Define the hooks used for building, parsing, printing, verification.
 
+  // 自定义 builder。
+  //
+  // 除了此处提供的自定义 builder 之外，除非设置了 skipDefaultBuilders，否则会
+  // 生成两个默认 builder，其 signatures 如下：
+  //
+  // ```c++
+  // static void build(OpBuilder &, OperationState &odsState,
+  //                   Type <result0-name>, Type <result1-name>, ...,
+  //                   Value <arg0-name>, Value <arg1-name>, ...,
+  //                   Attribute <attr0-name>, Attribute <attr1-name>, ...);
+  // ```
+  // * 其中 attributes 遵循与 Op 定义中相同的声明顺序。
+  //
+  // ```c++
+  // static void build(OpBuilder &, OperationState &odsState,
+  //                   TypeRange resultTypes,
+  //                   ValueRange operands,
+  //                   ArrayRef<NamedAttribute> attributes);
+  // ```
+  //
   // Custom builder.
   // In addition to the custom builder provided here, and unless
   // skipDefaultBuilders is set, two default builders are generated, with the
@@ -444,15 +486,28 @@ class Op<Dialect dialect, string mnemonic, list<Trait> props = []> {
   // ```
   list<OpBuilder> builders = ?;
 
+  // 避免生成默认 builder 函数。必须提供自定义 builder，其。
+  //
   // Avoid generating default build functions.  Custom builders must be
   // provided.
   bit skipDefaultBuilders = 0;
 
+  // 自定义组装格式。
+  //
+  /// 此字段对应于此操作的 assembly format 的声明性描述。
+  /// 如果填充，则 `hasCustomAssemblyFormat` 字段将被忽略。
+  ///
   // Custom assembly format.
   /// This field corresponds to a declarative description of the assembly format
   /// for this operation. If populated, the `hasCustomAssemblyFormat` field is
   /// ignored.
   string assemblyFormat = ?;
+  /// 此字段表示 Op 具有用 C++ 实现的自定义 assembly format。设置为 `1` 时，Op 类上会
+  /// 生成 `parse` 和 `print` 方法。Op 应实现这些方法以支持 Op 的自定义 format。方法
+  /// 的形式如下：
+  /// * ParseResult parse(OpAsmParser &parser, OperationState &result)
+  /// * void print(OpAsmPrinter &p)
+  ///
   /// This field indicates that the operation has a custom assembly format
   /// implemented in C++. When set to `1` a `parse` and `print` method are generated
   /// on the operation class. The operation should implement these methods to
@@ -461,6 +516,11 @@ class Op<Dialect dialect, string mnemonic, list<Trait> props = []> {
   ///   * void print(OpAsmPrinter &p)
   bit hasCustomAssemblyFormat = 0;
 
+  // 一个 bit，指示 Op 是否具有需要验证的其他不变量（除其他 ODS 构造验证的不变量之外）。
+  // 如果设置为 `1`，则将在 Op 类上生成额外的 `LogicalResult verify()` 声明。Op 应
+  // 实现此方法并验证其他必要的不变量。此验证器不应访问任何嵌套操作，因为这些 Op 可能
+  // 格式不正确。请改用下面的 `hasRegionVerifier`。
+  //
   // A bit indicating if the operation has additional invariants that need to
   // verified (aside from those verified by other ODS constructs). If set to `1`,
   // an additional `LogicalResult verify()` declaration will be generated on the
@@ -470,6 +530,12 @@ class Op<Dialect dialect, string mnemonic, list<Trait> props = []> {
   // `hasRegionVerifier` below instead.
   bit hasVerifier = 0;
 
+  // 一个 bit，指示 Op 是否具有需要验证的与 region 相关的其他不变量（除了 traits 验证
+  // 的不变量之外）。
+  // 如果设置为 `1`，则将在 Op 类上生成额外的 `LogicalResult verifyRegions()` 声明。
+  // Op 应实现此方法并验证与 region 相关的其他必要不变量。请注意，在验证所有 region
+  // Ops 后，将调用此方法。
+  //
   // A bit indicating if the operation has additional invariants that need to
   // verified and which associate with regions (aside from those verified by the
   // traits). If set to `1`, an additional `LogicalResult verifyRegions()`
@@ -479,28 +545,46 @@ class Op<Dialect dialect, string mnemonic, list<Trait> props = []> {
   // region ops are verified.
   bit hasRegionVerifier = 0;
 
+  // 此 Op 是否具有相关的 canonicalization patterns。
+  //
   // Whether this op has associated canonicalization patterns.
   bit hasCanonicalizer = 0;
 
+  // 此 Op 是否具有 a static "canonicalize" method 来执行 "match and rewrite
+  // patterns"。
+  //
   // Whether this op has a static "canonicalize" method to perform "match and
   // rewrite patterns".
   bit hasCanonicalizeMethod = 0;
 
+  // 此 Op 是否有 folder。
+  //
   // Whether this op has a folder.
   bit hasFolder = 0;
 
+  // 是否让 ops 实现其自定义的 `readProperties` 和 `writeProperties` 方法来 emit
+  // bytecode。
+  //
   // Whether to let ops implement their custom `readProperties` and
   // `writeProperties` methods to emit bytecode.
   bit useCustomPropertiesEncoding = 0;
 
+  // Op traits。
+  // 注意：traits list 将由 ODS 唯一化。
+  //
   // Op traits.
   // Note: The list of traits will be uniqued by ODS.
   list<Trait> traits = props;
 
+  // 将被添加到 Op 声明的生成的 C++ 代码的 public 部分的附加代码。
+  //
   // Additional code that will be added to the public part of the generated
   // C++ code of the op declaration.
   code extraClassDeclaration = ?;
 
+  // 将被添加到生成的 source 文件中的附加代码。生成的代码放置在 op 的 C++ 命名空间
+  // 内。`$cppClass` 由 op 的 C++ 类名替换。
+  //
   // Additional code that will be added to the generated source file. The
   // generated code is placed inside the op's C++ namespace. `$cppClass` is
   // replaced by the op's C++ class name.
