@@ -44,6 +44,8 @@ struct AffineMapStorage final
            std::get<2>(key) == results();
   }
 
+  // 根据 key 构造 AffineMapStorage。上下文必须由调用者设置。
+  //
   // Constructs an AffineMapStorage from a key. The context must be set by the
   // caller.
   static AffineMapStorage *

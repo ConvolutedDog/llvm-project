@@ -293,6 +293,9 @@ def VectorTypeWithScalableDims : DialectType<(type
 }
 }
 
+/// 此枚举包含标记代码，用于指示当前正在解码哪个属性以及应如何解码。这些代码的顺序通
+/// 常应保持不变，因为任何更改都将不可避免地破坏与旧字节码的兼容性。
+///
 /// This enum contains marker codes used to indicate which attribute is
 /// currently being decoded, and how it should be decoded. The order of these
 /// codes should generally be unchanged, as any changes will inevitably break

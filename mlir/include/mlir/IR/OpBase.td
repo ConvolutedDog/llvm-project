@@ -319,35 +319,100 @@ class OpDocGroup {
   string description;
 }
 
+// 所有 Op 的基类。
+//
 // Base class for all ops.
 class Op<Dialect dialect, string mnemonic, list<Trait> props = []> {
+  // Op 所属的方言。
+  //
   // The dialect of the op.
   Dialect opDialect = dialect;
 
+  // Op 的助记符。
+  //
   // The mnemonic of the op.
   string opName = mnemonic;
 
+  // 用于此 Op 的 C++ 命名空间。
+  //
   // The C++ namespace to use for this op.
   string cppNamespace = dialect.cppNamespace;
 
+  // 关于 Op 所做事情的一行易于理解的描述。
+  //
   // One-line human-readable description of what the op does.
   string summary = "";
 
+  // 关于 Op 内容的额外的、更长的、易于阅读的描述。
+  //
   // Additional, longer human-readable description of what the op does.
   string description = "";
 
+  // 可选的。此 Op 所属的操作组。
+  //
   // Optional. The group of ops this op is part of.
   OpDocGroup opDocGroup = ?;
 
+  // Dag 包含 Op 的参数。默认为 0 个参数。
+  //
   // Dag containing the arguments of the op. Default to 0 arguments.
   dag arguments = (ins);
 
+  // Op 的结果列表。默认为 0 个结果。
+  //
   // The list of results of the op. Default to 0 results.
   dag results = (outs);
 
+  // Op 的 regions 列表。默认为 0 个 regions。
+  // 
+  // Example 1: scf.if 有 2 个 regions。
+  //   scf.if %condition {
+  //       // "then" region
+  //       %0 = arith.constant 1 : i32
+  //   } else {
+  //       // "else" region
+  //       %0 = arith.constant 0 : i32
+  //   }
+  //
+  // Example 2: func.func 有 1 个 region。
+  //   func.func @example(%arg0: i32) -> i32 {
+  //       // This is a region containing one block
+  //       %0 = arith.constant 1 : i32
+  //       %1 = arith.addi %arg0, %0 : i32
+  //       return %1 : i32
+  //   }
+  //
+  // Other examples:
+  //   scf.for: Has one region for the loop body
+  //   scf.while: Has two regions (condition and body)
+  //
   // The list of regions of the op. Default to 0 regions.
   dag regions = (region);
 
+  // 操作的 successors 列表。默认为 0 个 successor。
+  // 
+  // Successor 是连接区域内 block 的显式控制流 edge。需要注意的是，successor
+  // 是 block 的属性，而不是直接的 Op（尽管某些终止符 Op --- 即一个 block 的
+  // 最终的 Op --- 定义了 block 具有哪些 successors）。
+  //
+  // 注意：只有终止符 Op（结束一个 block 的 Op）可以定义 successors。
+  //
+  // Examples:
+  //   // No successors (returns from function)
+  //   return %value : i32
+  //   
+  //   // One successor (unconditional branch)
+  //   br ^dest(%value : i32)
+  //   
+  //   // Two successors (conditional branch)
+  //   cond_br %cond, ^true_dest(%value : i32), ^false_dest(%value : i32)
+  //   
+  //   // Switch operation (multiple successors)
+  //   switch %value, ^default [
+  //       case 0: ^case0,
+  //       case 1: ^case1
+  //   ]
+  //
   // The list of successors of the op. Default to 0 successors.
   dag successors = (successor);
 

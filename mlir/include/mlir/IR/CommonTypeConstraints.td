@@ -903,6 +903,9 @@ def AnyShaped: ShapedContainerType<[AnyType], IsShapedTypePred, "shaped",
 //===----------------------------------------------------------------------===//
 // Tensor types.
 
+// Unranked 的张量类型，其元素类型来自给定的 `allowedTypes` 列表，并且还满足可
+// 选的谓词列表。
+//
 // Unranked tensor type whose element type is from the given `allowedTypes`
 // list, and which additionally satisfies an optional list of predicates.
 class UnrankedTensorOf<list<Type> allowedTypes, list<Pred> preds = [],
@@ -911,6 +914,8 @@ class UnrankedTensorOf<list<Type> allowedTypes, list<Pred> preds = [],
       allowedTypes, And<!listconcat([IsUnrankedTensorTypePred], preds)>,
       summary, "::mlir::UnrankedTensorType">;
 
+// Ranked 张量类型，其元素类型来自给定的 `allowedTypes` 列表，并且还满足可选的谓词列表。
+//
 // Ranked tensor type whose element type is from the given `allowedTypes` list,
 // and which additionally satisfies an optional list of predicates.
 class RankedTensorOf<list<Type> allowedTypes, list<Pred> preds = [],
@@ -919,6 +924,8 @@ class RankedTensorOf<list<Type> allowedTypes, list<Pred> preds = [],
       allowedTypes, And<!listconcat([IsRankedTensorTypePred], preds)>,
       summary, "::mlir::RankedTensorType">;
 
+// 其元素类型来自给定的 `allowedTypes` 列表，并且还满足可选谓词列表的任何张量类型。
+//
 // Any tensor type whose element type is from the given `allowedTypes`
 // list, and which additionally satisfies an optional list of predicates.
 //
@@ -932,8 +939,10 @@ class TensorOf<
       And<!listconcat([IsTensorTypePred], preds)>,
       summary, "::mlir::TensorType">;
 
+// 任意张量类型，其元素类型可任意。
 def AnyTensor  : TensorOf<[AnyType]>;
 
+// 张量类型，其元素类型被指定。
 def I1Tensor   : TensorOf<[I1]>;
 def I8Tensor   : TensorOf<[I8]>;
 def I16Tensor  : TensorOf<[I16]>;
@@ -946,18 +955,25 @@ def F16Tensor  : TensorOf<[F16]>;
 def F32Tensor  : TensorOf<[F32]>;
 def F64Tensor  : TensorOf<[F64]>;
 
+// 非 0-Rank 的张量类型。
 class Non0RankedTensorOf<list<Type> allowedTypes>
   : TensorOf<allowedTypes, [HasRankGreaterOrEqualPred<1>],
       "non-0-ranked.tensor">;
 
+// 任意 Ranked 张量类型，其元素类型任意。
 def AnyRankedTensor : RankedTensorOf<[AnyType]>;
+// 任意非 0-Ranked 张量类型，其元素类型任意。
 def AnyNon0RankedTensor  : Non0RankedTensorOf<[AnyType]>;
+// 任意 Unranked 的张量类型，其元素类型任意。
 def AnyUnrankedTensor  : UnrankedTensorOf<[AnyType]>;
 
+// 任意非 0-Ranked 张量类型 或 任意 Unranked 的张量类型，其元素类型任意。
 def AnyNon0RankedOrUnrankedTensor
   : AnyTypeOf<[AnyUnrankedTensor, AnyNon0RankedTensor],
               "non-0-ranked or unranked tensor", "::mlir::TensorType">;
 
+// 具有指定类型和 rank 之一的 ranked 张量类型。
+//
 // Ranked tensor type with one of the specified types and ranks.
 class TensorRankOf<list<Type> allowedTypes, list<int> ranks>
   : RankedTensorOf<allowedTypes,
@@ -970,36 +986,50 @@ class 2DTensorOf<list<Type> allowedTypes> : TensorRankOf<allowedTypes, [2]>;
 class 3DTensorOf<list<Type> allowedTypes> : TensorRankOf<allowedTypes, [3]>;
 class 4DTensorOf<list<Type> allowedTypes> : TensorRankOf<allowedTypes, [4]>;
 
+// Ranked 静态形状张量类型，其元素类型来自给定的 `allowedTypes` 列表，且具有静
+// 态形状的 ShapedType。
 class StaticShapeTensorOf<list<Type> allowedTypes>
   : RankedTensorOf<allowedTypes, [HasStaticShapePred],
                    "statically shaped tensor">;
 
+// 任意 Ranked 静态形状张量类型，，其元素类型任意。
 def AnyStaticShapeTensor : StaticShapeTensorOf<[AnyType]>;
 
 //===----------------------------------------------------------------------===//
 // Memref type.
 
+// 任何 unranked 的 memref，其元素类型来自给定的 `allowedTypes` 列表。
+//
 // Any unranked memref whose element type is from the given `allowedTypes` list.
 class UnrankedMemRefOf<list<Type> allowedTypes> :
     ShapedContainerType<allowedTypes,
                         IsUnrankedMemRefTypePred, "unranked.memref",
                         "::mlir::UnrankedMemRefType">;
 
+// 任意 unranked 的 memref，其元素类型任意。
 def AnyUnrankedMemRef : UnrankedMemRefOf<[AnyType]>;
 
+// 任何 ranked 的 memref，其元素类型来自给定的 `allowedTypes` 列表。
+//
 // Any ranked memref whose element type is from the given `allowedTypes` list.
 class MemRefOf<list<Type> allowedTypes> :
     ShapedContainerType<allowedTypes, IsMemRefTypePred, "memref",
                         "::mlir::MemRefType">;
 
+// 非 0-Rank 的 MemRef 类型，其元素类型来自给定的 `allowedTypes` 列表。
 class Non0RankedMemRefOf<list<Type> allowedTypes> :
     ConfinedType<MemRefOf<allowedTypes>, [HasRankGreaterOrEqualPred<1>],
          "non-0-ranked." # MemRefOf<allowedTypes>.summary,
          "::mlir::MemRefType">;
 
+// 任意 ranked 的 MemRef，其元素类型任意。
 def AnyMemRef : MemRefOf<[AnyType]>;
+// 任意非 0-Rank 的 MemRef 类型，其元素类型任意。
 def AnyNon0RankedMemRef : Non0RankedMemRefOf<[AnyType]>;
 
+// 任何 memref（ranked 或 unranked），其元素类型来自给定的 `allowedTypes` 列表，
+// 并且还满足可选的谓词列表。
+//
 // Any memref (ranked or unranked) whose element type is from the given
 // `allowedTypes` list, and which additionally satisfies an optional list of
 // predicates.
@@ -1011,10 +1041,15 @@ class RankedOrUnrankedMemRefOf<
       And<!listconcat([IsBaseMemRefTypePred], preds)>,
       summary, "::mlir::BaseMemRefType">;
 
+// 任何 memref（ranked 或 unranked），其元素类型任意。
 def AnyRankedOrUnrankedMemRef  : RankedOrUnrankedMemRefOf<[AnyType]>;
+// 任何非 0-Ranked 或 Unranked MemRef，其元素类型任意。
 def AnyNon0RankedOrUnrankedMemRef:
     AnyTypeOf<[AnyUnrankedMemRef, AnyNon0RankedMemRef]>;
 
+// Memref 声明可处理任何 memref，与 rank、size（静态或动态）、layout 或 memory
+// space 无关。
+//
 // Memref declarations handle any memref, independent of rank, size, (static or
 // dynamic), layout, or memory space.
 def I1MemRef  : MemRefOf<[I1]>;
@@ -1028,6 +1063,8 @@ def F16MemRef  : MemRefOf<[F16]>;
 def F32MemRef  : MemRefOf<[F32]>;
 def F64MemRef  : MemRefOf<[F64]>;
 
+// 具有指定类型和 rank 之一的 MemRef类型。
+//
 // TODO: Have an easy way to add another constraint to a type.
 class MemRefRankOf<list<Type> allowedTypes, list<int> ranks> :
     ConfinedType<MemRefOf<allowedTypes>, [HasAnyRankOfPred<ranks>],
@@ -1035,11 +1072,14 @@ class MemRefRankOf<list<Type> allowedTypes, list<int> ranks> :
          MemRefOf<allowedTypes>.summary,
          "::mlir::MemRefType">;
 
+// 静态形状的 MemRef 类型，其元素类型来自给定的 `allowedTypes` 列表，且具有静
+// 态形状的 ShapedType。
 class StaticShapeMemRefOf<list<Type> allowedTypes> :
     ConfinedType<MemRefOf<allowedTypes>, [HasStaticShapePred],
          "statically shaped " # MemRefOf<allowedTypes>.summary,
          "::mlir::MemRefType">;
 
+// 静态形状的 MemRef 类型，其元素类型任意，且具有静态形状的 ShapedType。
 def AnyStaticShapeMemRef : StaticShapeMemRefOf<[AnyType]>;
 
 // 对于 MemRefType，验证它是否有步幅。
@@ -1047,24 +1087,35 @@ def AnyStaticShapeMemRef : StaticShapeMemRefOf<[AnyType]>;
 // For a MemRefType, verify that it has strides.
 def HasStridesPred : CPred<[{ isStrided(::llvm::cast<::mlir::MemRefType>($_self)) }]>;
 
+// 具有步长的 MemRef 类型，其元素类型来自给定的 `allowedTypes` 列表，
+// MemRefType 有步幅。
 class StridedMemRefOf<list<Type> allowedTypes> :
     ConfinedType<MemRefOf<allowedTypes>, [HasStridesPred],
          "strided " # MemRefOf<allowedTypes>.summary>;
 
+// 具有步长的 MemRef 类型，其元素类型任意，MemRefType 有步幅。
 def AnyStridedMemRef : StridedMemRefOf<[AnyType]>;
 
+// 具有步长的、指定 rank 的 MemRef 类型，其元素类型任意，MemRefType 有步幅。
 class AnyStridedMemRefOfRank<int rank> :
   AllOfType<[AnyStridedMemRef, MemRefRankOf<[AnyType], [rank]>],
        AnyStridedMemRef.summary # " of rank " # rank>;
 
+// 具有步长的、指定 rank 的 MemRef 类型，其元素类型来自给定的 `allowedTypes`
+// 列表，MemRefType 有步幅。
 class StridedMemRefRankOf<list<Type> allowedTypes, list<int> ranks> :
     ConfinedType<MemRefOf<allowedTypes>, [HasAnyRankOfPred<ranks>],
          !interleave(!foreach(rank, ranks, rank # "D"), "/") # " " #
          MemRefOf<allowedTypes>.summary>;
 
+// 这表示一个对元素类型没有任何限制的通用元组。
+//
 // This represents a generic tuple without any constraints on element type.
 def AnyTuple : Type<IsTupleTypePred, "tuple", "::mlir::TupleType">;
 
+// 一种容器类型，其中嵌入了其他类型，但（与 ContainerType 不同）可以容纳混合类型
+// 的元素。需要调用以生成所有元素类型的列表。
+//
 // A container type that has other types embedded in it, but (unlike
 // ContainerType) can hold elements with a mix of types. Requires a call that
 // produces a list of all elements' types.
@@ -1088,12 +1139,16 @@ class MixedContainerType<Type etype, Pred containerPred, code elementTypesCall,
   code getElementTypesCall = elementTypesCall;
 }
 
+// 包含允许类型的混合元素的元组。
+//
 // A Tuple that holds a mix of elements of the allowed types.
 class TupleOf<list<Type> allowedTypes>
     : MixedContainerType<AnyTypeOf<allowedTypes>, IsTupleTypePred,
                          "::llvm::cast<::mlir::TupleType>($_self).getTypes()",
                          "tuple">;
 
+// 具有任意嵌套的元组，其中所有元素都是允许类型的混合。
+//
 // A Tuple with arbitrary nesting, where all elements are a mix of the allowed
 // types.
 class NestedTupleOf<list<Type> allowedTypes> :
@@ -1104,6 +1159,9 @@ class NestedTupleOf<list<Type> allowedTypes> :
 //===----------------------------------------------------------------------===//
 // Common type constraints
 //===----------------------------------------------------------------------===//
+// 对于 "like" 某种类型或类型 T 集合的类型约束，即它们要么是 T，要么是 T 的向量，要么
+// 是 T 的张量。
+//
 // Type constraint for types that are "like" some type or set of types T, that is
 // they're either a T, a vector of Ts, or a tensor of Ts.
 class TypeOrContainer<Type allowedType, string name> : TypeConstraint<Or<[
@@ -1111,6 +1169,8 @@ class TypeOrContainer<Type allowedType, string name> : TypeConstraint<Or<[
   ValueSemanticsContainerOf<[allowedType]>.predicate]>,
   name>;
 
+// 对于 "like" 某种类型或类型 T 集合的类型约束，即它们要么是 T，要么是可映射的 T 容器。
+// 
 // Type constraint for types that are "like" some type or set of types T, that is
 // they're either a T or a mapable container of Ts.
 class TypeOrValueSemanticsContainer<Type allowedType, string name>

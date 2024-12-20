@@ -244,6 +244,8 @@ public:
 // TupleType
 //===----------------------------------------------------------------------===//
 
+/// 此类表示 PDLL 元组类型，即具有可选名称的有序元素类型集合。
+///
 /// This class represents a PDLL tuple type, i.e. an ordered set of element
 /// types with optional names.
 class TupleType : public Type::TypeBase<detail::TupleTypeStorage> {

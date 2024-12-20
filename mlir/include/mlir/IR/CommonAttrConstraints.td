@@ -22,9 +22,19 @@ include "mlir/IR/DialectBase.td"
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
+// 基本 attribute 定义
+//
 // Base attribute definition
 
-// 所有属性的基类。
+// 所有 attributes 的基类。
+// AttrConstraint 的定义：
+//   class Constraint<Pred pred, string desc = ""> {
+//     // The predicates that this constraint requires.
+//     Pred predicate = pred;
+//     // User-readable one line summary used in error reporting messages. If
+//     // empty, a generic message will be used.
+//     string summary = desc;
+//   }
 //
 // Base class for all attributes.
 class Attr<Pred condition, string summary = ""> :
@@ -51,6 +61,13 @@ class Attr<Pred condition, string summary = ""> :
   // expand to `getAttrOfType<IntegerAttr>("val").getValue().getSExtValue()`.
   code convertFromStorage = "$_self.getValue()";
 
+  // 从 constant 值 build an attribute 的调用表达式。
+  //
+  // 格式：$0 将扩展为属性的常量值。
+  //
+  // 例如，`StringAttr:"foo"` 的 `$_builder.getStringAttr("$0")` 将扩展为
+  // `builder.getStringAttr("foo")`。
+  //
   // The call expression to build an attribute from a constant value.
   //
   // Format: $0 will be expanded to the constant value of the attribute.
@@ -59,19 +76,35 @@ class Attr<Pred condition, string summary = ""> :
   // expand to `builder.getStringAttr("foo")`.
   string constBuilderCall = ?;
 
+  // 属性的默认值。
+  // 需要预先定义 `constBuilderCall`。
+  //
   // Default value for attribute.
   // Requires a constBuilderCall defined.
   string defaultValue = ?;
 
+  // 此 attribute 的 value type。这对应于此 attribute 通过 `getType()` 返回的
+  // `mlir::Type`。
+  //
   // The value type of this attribute. This corresponds to the mlir::Type that
   // this attribute returns via `getType()`.
   Type valueType = ?;
 
+  // 该属性是否可选。通常需要自定义 `convertFromStorage` 方法来处理不存在该属性
+  // 的情况。
+  //
   // Whether the attribute is optional. Typically requires a custom
   // convertFromStorage method to handle the case where the attribute is
   // not present.
   bit isOptional = 0;
 
+  // 此 Attr 所 built upon 的 Base-level Attr instantiation 是什么。
+  // Unset 表示这是一个 base-level Attr。
+  //
+  // 此 field 由 attribute wrapper classes (DefaultValuedAttr, OptionalAttr) 
+  // 用于检索 base-level attribute 的定义。这可用于获取其 name；否则，由于模板实
+  // 例化，我们将看到 "anonymous_<number>"  作为 attribute def name。
+  //
   // What is the base-level Attr instantiation that this Attr is built upon.
   // Unset means this is a base-level Attr.
   //
@@ -83,6 +116,8 @@ class Attr<Pred condition, string summary = ""> :
   // TOOD(b/132458159): deduplicate the fields in attribute wrapper classes.
   Attr baseAttr = ?;
 
+  // 生成的类所在的完全限定的 C++ 命名空间。
+  //
   // The fully-qualified C++ namespace where the generated class lives.
   string cppNamespace = "";
 
@@ -90,6 +125,8 @@ class Attr<Pred condition, string summary = ""> :
   string description = "";
 }
 
+// 特定方言的 attribute。
+//
 // An attribute of a specific dialect.
 class DialectAttr<Dialect d, Pred condition, string summary = ""> :
     Attr<condition, summary> {
@@ -98,11 +135,18 @@ class DialectAttr<Dialect d, Pred condition, string summary = ""> :
 }
 
 //===----------------------------------------------------------------------===//
+// Attribute modifier 定义
+//
 // Attribute modifier definition
 
+// 如果不存在默认值，则修饰 attribute 以使其具有（未经验证的）默认值。
+//
 // Decorates an attribute to have an (unvalidated) default value if not present.
 class DefaultValuedAttr<Attr attr, string val> :
     Attr<attr.predicate, attr.summary> {
+  // 使用 input attribute 构造此 attribute 并仅更改默认值。
+  // 注意：这必须与上面的 Attr 保持同步。
+  //
   // Construct this attribute with the input attribute and change only
   // the default value.
   // Note: this has to be kept up to date with Attr above.
@@ -116,10 +160,16 @@ class DefaultValuedAttr<Attr attr, string val> :
   let baseAttr = attr;
 }
 
+// 修饰 optional attribute，如果不存在默认值，则将默认值设置为由 ODS 生成的访
+// 问器返回的（未经验证的）默认值。
+//
 // Decorates an optional attribute to have an (unvalidated) default value
 // return by ODS generated accessors if not present.
 class DefaultValuedOptionalAttr<Attr attr, string val> :
     Attr<attr.predicate, attr.summary> {
+  // 使用 input attribute 构造此 attribute 并仅更改默认值。
+  // 注意：这必须与上面的 Attr 保持同步。
+  //
   // Construct this attribute with the input attribute and change only
   // the default value.
   // Note: this has to be kept up to date with Attr above.
@@ -129,11 +179,14 @@ class DefaultValuedOptionalAttr<Attr attr, string val> :
   let constBuilderCall = attr.constBuilderCall;
   let defaultValue = val;
   let valueType = attr.valueType;
+  // 这里设置为可选属性。
   let isOptional = 1;
 
   let baseAttr = attr;
 }
 
+// 将属性修饰为可选。生成的属性访问器方法的返回类型将为 `Optional<>`。
+//
 // Decorates an attribute as optional. The return type of the generated
 // attribute accessor method will be Optional<>.
 class OptionalAttr<Attr attr> : Attr<attr.predicate, attr.summary> {
@@ -144,11 +197,14 @@ class OptionalAttr<Attr attr> : Attr<attr.predicate, attr.summary> {
   let convertFromStorage = "$_self ? " # returnType # "(" #
                            attr.convertFromStorage # ") : (::std::nullopt)";
   let valueType = attr.valueType;
+  // 这里设置为可选属性。
   let isOptional = 1;
 
   let baseAttr = attr;
 }
 
+// 字符串值的带默认值的 attribute。
+//
 // Default-valued string-based attribute. Wraps the default value in escaped
 // quotes.
 class DefaultValuedStrAttr<Attr attr, string val>
@@ -157,13 +213,21 @@ class DefaultValuedOptionalStrAttr<Attr attr, string val>
     : DefaultValuedOptionalAttr<attr, "\"" # val # "\"">;
 
 //===----------------------------------------------------------------------===//
+// 原始属性种类
+//
 // Primitive attribute kinds
 
+// 必须围绕特定可构建类型 `attrValType` 构建的 generic attribute。由 MLIR 属性类型
+// `attrKind` 支持。
+//
+// 用法详见下方的 class AnyIntegerAttrBase 定义。
+//
 // A generic attribute that must be constructed around a specific buildable type
 // `attrValType`. Backed by MLIR attribute kind `attrKind`.
 class TypedAttrBase<Type attrValType, string attrKind, Pred condition,
                     string descr> :
     Attr<condition, descr> {
+  // 对于 `class AnyIntegerAttrBase`，这里 `attrKind` = `IntegerAttr`。
   let constBuilderCall = "$_builder.get" # attrKind # "(" #
                          attrValType.builderCall # ", $0)";
   let storageType = "::mlir::" # attrKind;
@@ -400,6 +464,8 @@ def UnitAttr : Attr<CPred<"::llvm::isa<::mlir::UnitAttr>($_self)">, "unit attrib
 }
 
 //===----------------------------------------------------------------------===//
+// 复合 attribute 种类
+//
 // Composite attribute kinds
 
 class DictionaryAttrBase<Pred condition, string summary> :

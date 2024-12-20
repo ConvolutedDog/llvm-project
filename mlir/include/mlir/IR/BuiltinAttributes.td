@@ -19,11 +19,16 @@ include "mlir/IR/BuiltinDialect.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/IR/OpAsmInterface.td"
 
+// TODO: 目前此文件中定义的属性以 `Builtin_` 为前缀。这是为了将此处的属性与 OpBase.td
+// 中的属性区分开来。我们应该删除 OpBase.td 中的定义，并将用户重新指向此文件。
+//
 // TODO: Currently the attributes defined in this file are prefixed with
 // `Builtin_`.  This is to differentiate the attributes here with the ones in
 // OpBase.td. We should remove the definitions in OpBase.td, and repoint users
 // to this file instead.
 
+// 内置方言的 attributes 的基类。
+//
 // Base class for Builtin dialect attributes.
 class Builtin_Attr<string name, string attrMnemonic, list<Trait> traits = [],
                    string baseCppClass = "::mlir::Attribute">

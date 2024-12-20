@@ -30,6 +30,53 @@ template <typename ImplTy, typename T>
 using has_impltype_hash_t = decltype(ImplTy::hashKey(std::declval<T>()));
 } // namespace detail
 
+/// 用于获取或创建 "storage classes" 实例的实用程序类。这些存储类必须从
+/// `StorageUniquer::BaseStorage` 派生。
+///
+/// 对于 non-parametric storage classes，即 singleton classes，不需要其他任何东西。
+/// 可以通过调用不带 trailing arguments 的 `get` 来创建这些类的实例。
+///
+/// 否则，可以使用 `get` 创建 parametric storage classes，并且必须遵守以下规定：
+///    - Define a type alias, KeyTy, to a type that uniquely identifies the
+///      instance of the storage class.
+///      * The key type must be constructible from the values passed into the
+///        getComplex call.
+///      * If the KeyTy does not have an llvm::DenseMapInfo specialization, the
+///        storage class must define a hashing method:
+///         'static unsigned hashKey(const KeyTy &)'
+///
+///    - Provide a method, 'bool operator==(const KeyTy &) const', to
+///      compare the storage instance against an instance of the key type.
+///
+///    - Provide a static construction method:
+///        'DerivedStorage *construct(StorageAllocator &, const KeyTy &key)'
+///      that builds a unique instance of the derived storage. The arguments to
+///      this function are an allocator to store any uniqued data and the key
+///      type for this storage.
+///
+///    - Provide a cleanup method:
+///        'void cleanup()'
+///      that is called when erasing a storage instance. This should cleanup any
+///      fields of the storage as necessary and not attempt to free the memory
+///      of the storage itself.
+///
+/// storage classes 可以具有可选的可变组件，该组件不得参与唯一的不可变键。在这种情况
+/// 下，存储类可以使用“mutate”进行变异，并且还必须遵守以下规定：
+///    - Provide a mutation method:
+///        'LogicalResult mutate(StorageAllocator &, <...>)'
+///      that is called when mutating a storage instance. The first argument is
+///      an allocator to store any mutable data, and the remaining arguments are
+///      forwarded from the call site. The storage can be mutated at any time
+///      after creation. Care must be taken to avoid excessive mutation since
+///      the allocated storage can keep containing previous states. The return
+///      value of the function is used to indicate whether the mutation was
+///      successful, e.g., to limit the number of mutations or enable deferred
+///      one-time assignment of the mutable component.
+///
+/// 所有 storage classes 都必须通过 `registerParametricStorageType` 或
+/// `registerSingletonStorageType` 使用适合该 storage class 的唯一 `TypeID`
+/// registered with the uniquer。
+///
 /// A utility class to get or create instances of "storage classes". These
 /// storage classes must derive from 'StorageUniquer::BaseStorage'.
 ///
