@@ -71,6 +71,15 @@ static const char *const subrangeGetAttr =
     "::mlir::impl::get{4}AttrFromSortedRange({3}.begin() + {1}, {3}.end() - "
     "{2}, {0})";
 
+/// 用于计算 Op 的具有可变声明的操作数/结果的 actual value range 的逻辑。请注意，此
+/// 逻辑不适用于一般用途；它假定所有可变操作数/结果必须具有相同数量的值。
+///
+/// {0}：每个声明的操作数/结果是否为可变参数的列表。
+/// {1}：非可变操作数/结果的总数。
+/// {2}：可变操作数/结果的总数。
+/// {3}：实际值的总数。
+/// {4}：“操作数”或“结果”。
+///
 /// The logic to calculate the actual value range for a declared operand/result
 /// of an op with variadic operands/results. Note that this logic is not for
 /// general use; it assumes all variadic operands/results must have the same
@@ -82,6 +91,34 @@ static const char *const subrangeGetAttr =
 /// {3}: The total number of actual values.
 /// {4}: "operand" or "result".
 static const char *const sameVariadicSizeValueRangeCalcCode = R"(
+  // The logic to calculate the actual value range for a declared operand/result
+  // of an op with variadic operands/results. Note that this logic is not for
+  // general use; it assumes all variadic operands/results must have the same
+  // number of values.
+  //
+  // [0]: The list of whether each declared operand/result is variadic.
+  // [1]: The total number of non-variadic operands/results.
+  // [2]: The total number of variadic operands/results.
+  // [3]: The total number of actual values.
+  // [4]: "operand" or "result".
+  //
+  // Generated Code:
+  //   bool isVariadic[] = [[[0]]];
+  //   int prevVariadicCount = 0;
+  //   for (unsigned i = 0; i < index; ++i)
+  //     if (isVariadic[i]) ++prevVariadicCount;
+  //   
+  //   // Calculate how many dynamic values a static variadic [4] corresponds to.
+  //   // This assumes all static variadic [4]s have the same dynamic value count.
+  //   int variadicSize = ([3] - [1]) / [2];
+  //   // `index` passed in as the parameter is the static index which counts each
+  //   // [4] (variadic or not) as size 1. So here for each previous static variadic
+  //   // [4], we need to offset by (variadicSize - 1) to get where the dynamic
+  //   // value pack for this static [4] starts.
+  //   int start = index + (variadicSize - 1) * prevVariadicCount;
+  //   int size = isVariadic[index] ? variadicSize : 1;
+  //   return [start, size];
+
   bool isVariadic[] = {{{0}};
   int prevVariadicCount = 0;
   for (unsigned i = 0; i < index; ++i)
