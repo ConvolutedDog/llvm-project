@@ -38,6 +38,13 @@ using file_t = int;
 } // namespace fs
 } // namespace sys
 
+/// 此接口提供对内存块的简单只读访问，并提供将文件和标准输入读取到内存缓冲区的简单方
+/// 法。除了对文件中字符的基本访问之外，此接口还保证您可以读取文件末尾的一个字符，并
+/// 且该字符将读为 '\0'。
+///
+/// 需要 '\0' guarantee 来支持优化---对于正在读取所有数据的客户端来说，当遇到 '\0'
+/// 时停止读取比不断检查文件位置以查看是否已到达文件末尾更有效。
+///
 /// This interface provides simple read-only access to a block of memory, and
 /// provides simple methods for reading files and standard input into a memory
 /// buffer.  In addition to basic access to the characters in the file, this
@@ -71,10 +78,16 @@ public:
     return StringRef(BufferStart, getBufferSize());
   }
 
+  /// 返回此缓冲区的标识符，通常是读取该缓冲区的文件名。
+  ///
   /// Return an identifier for this buffer, typically the filename it was read
   /// from.
   virtual StringRef getBufferIdentifier() const { return "Unknown buffer"; }
 
+  /// 对于只读 MemoryBuffer_MMap，在不久的将来将缓冲区标记为未使用，内核可以释放
+  /// 与其关联的资源。支持进一步访问，但可能代价高昂。这会在 *NIX 系统上的只读文件
+  /// 映射上调用 madvise(MADV_DONTNEED)。不应在可写缓冲区上调用此函数。
+  ///
   /// For read-only MemoryBuffer_MMap, mark the buffer as unused in the near
   /// future and the kernel can free resources associated with it. Further
   /// access is supported but may be expensive. This calls
@@ -82,6 +95,9 @@ public:
   /// function should not be called on a writable buffer.
   virtual void dontNeedIfMmap() {}
 
+  /// 将指定的文件作为 MemoryBuffer 打开，如果成功则返回一个新的 MemoryBuffer，否
+  /// 则返回 null。
+  ///
   /// Open the specified file as a MemoryBuffer, returning a new MemoryBuffer
   /// if successful, otherwise returning null.
   ///

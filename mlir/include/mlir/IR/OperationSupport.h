@@ -66,6 +66,8 @@ class ValueTypeRange;
 // OpaqueProperties
 //===----------------------------------------------------------------------===//
 
+/// 简单包装一个 void* 以便通用地表达如何通过 API 传递操作属性。
+///
 /// Simple wrapper around a void* in order to express generically how to pass
 /// in op properties through APIs.
 class OpaqueProperties {
@@ -166,21 +168,34 @@ public:
     //===------------------------------------------------------------------===//
     // Registered Operation Info
 
+    /// Operation 的名称。
+    ///
     /// The name of the operation.
     StringAttr name;
 
+    /// 派生 Op 类的唯一标识符。
+    ///
     /// The unique identifier of the derived Op class.
     TypeID typeID;
 
+    /// 仅当注册 Operation 时才会填充以下 fields。
+    ///
     /// The following fields are only populated when the operation is
     /// registered.
 
+    /// 这是此操作所属的方言。
+    ///
     /// This is the dialect that this operation belongs to.
     Dialect *dialect;
 
+    /// 已注册到此 Operation 的 map of interfaces。
+    ///
     /// A map of interfaces that were registered to this operation.
     detail::InterfaceMap interfaceMap;
 
+    /// 以 StringAttr 形式注册到此操作的 list of attribute names。这允许 operation
+    /// classes 使用 StringAttr 进行属性查找/创建/等，而不是原始字符串。
+    ///
     /// A list of attribute names registered to this operation in StringAttr
     /// form. This allows for operation classes to use StringAttr for attribute
     /// lookup/creation/etc., as opposed to raw strings.
@@ -943,6 +958,9 @@ private:
 // OperationState
 //===----------------------------------------------------------------------===//
 
+/// 这表示抽象形式的 operation，适合与 builder API 一起使用。此对象是一个大而重的对
+/// 象，旨在用作堆栈上的临时对象。将其放入集合中通常是不明智的。
+///
 /// This represents an operation in an abstracted form, suitable for use with
 /// the builder APIs.  This object is a large and heavy weight object meant to
 /// be used as a temporary object on the stack.  It is generally unwise to put

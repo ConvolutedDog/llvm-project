@@ -285,11 +285,16 @@ private:
   /// interface map.
   void insert(TypeID interfaceId, void *conceptImpl);
 
+  /// 通过比较底层指针来比较两个 TypeID instances。
+  ///
   /// Compare two TypeID instances by comparing the underlying pointer.
   static bool compare(TypeID lhs, TypeID rhs) {
     return lhs.getAsOpaquePointer() < rhs.getAsOpaquePointer();
   }
 
+  /// 如果已注册到此 map (`interfaces`)，则返回给定 instance ID 的概念对象的一个​​实例，
+  /// 否则返回 null。
+  ///
   /// Returns an instance of the concept object for the given interface id if it
   /// was registered to this map, null otherwise.
   void *lookup(TypeID id) const {
@@ -300,6 +305,8 @@ private:
     return (it != interfaces.end() && it->first == id) ? it->second : nullptr;
   }
 
+  /// interface 实例列表，按 TypeID 排序。
+  ///
   /// A list of interface instances, sorted by TypeID.
   SmallVector<std::pair<TypeID, void *>> interfaces;
 };

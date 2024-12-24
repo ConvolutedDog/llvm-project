@@ -367,6 +367,9 @@ bool OpPrintingFlags::shouldPrintUniqueSSAIDs() const {
 //===----------------------------------------------------------------------===//
 
 namespace {
+/// 此类是一个简单的格式化程序，当输入到流中时会发出一个新行，从而可以计算发出的换行符
+/// 数量。每当在打印机中发出换行符时都应使用此类。
+///
 /// This class is a simple formatter that emits a new line when inputted into a
 /// stream, that enables counting the number of newlines emitted. This class
 /// should be used whenever emitting newlines in the printer.
@@ -464,31 +467,48 @@ protected:
   void printLocationInternal(LocationAttr loc, bool pretty = false,
                              bool isTopLevel = false);
 
+  /// 打印 dense elements attribute。如果 `allowHex` 为真，则当元素属性较大时，将
+  /// 使用十六进制字符串而不是单个元素。
+  ///
   /// Print a dense elements attribute. If 'allowHex' is true, a hex string is
   /// used instead of individual elements when the elements attr is large.
   void printDenseElementsAttr(DenseElementsAttr attr, bool allowHex);
 
+  /// 打印 Dense string 元素的 attribute。
+  ///
   /// Print a dense string elements attribute.
   void printDenseStringElementsAttr(DenseStringElementsAttr attr);
 
+  /// 打印密集元素属性。如果 `allowHex` 为 true，则当元素 attribute 很大时，将使用
+  /// 十六进制字符串而不是单个 elements。
+  ///
   /// Print a dense elements attribute. If 'allowHex' is true, a hex string is
   /// used instead of individual elements when the elements attr is large.
   void printDenseIntOrFPElementsAttr(DenseIntOrFPElementsAttr attr,
                                      bool allowHex);
 
+  /// 打印 Dense Array Attribute。
+  ///
   /// Print a dense array attribute.
   void printDenseArrayAttr(DenseArrayAttr attr);
 
   void printDialectAttribute(Attribute attr);
   void printDialectType(Type type);
 
+  /// 打印转义的字符串，用 "" 包裹。
+  ///
   /// Print an escaped string, wrapped with "".
   void printEscapedString(StringRef str);
 
+  /// 打印十六进制字符串，用 "" 包裹。
+  ///
   /// Print a hex string, wrapped with "".
   void printHexString(StringRef str);
   void printHexString(ArrayRef<char> data);
 
+  /// 此枚举用于表示打印 AffineExprStorage 的封闭上下文的绑定强度，因此我们可以
+  /// 智能地生成括号。
+  ///
   /// This enum is used to represent the binding strength of the enclosing
   /// context that an AffineExprStorage is being printed in, so we can
   /// intelligently produce parens.
@@ -500,15 +520,24 @@ protected:
       AffineExpr expr, BindingStrength enclosingTightness,
       function_ref<void(unsigned, bool)> printValueName = nullptr);
 
+  /// 打印机的输出流。
+  ///
   /// The output stream for the printer.
   raw_ostream &os;
 
+  /// 底层的 assembly 打印机状态。
+  ///
   /// An underlying assembly printer state.
   AsmStateImpl &state;
 
+  /// 一组用于控制打印机行为的标志。
+  ///
   /// A set of flags to control the printer's behavior.
   OpPrintingFlags printerFlags;
 
+  /// 打印过程中发出的新行数的跟踪器。此类是一个简单的格式化程序，当输入到流中时会发出
+  /// 一个新行，从而可以计算发出的换行符数量。每当在打印机中发出换行符时都应使用此类。
+  ///
   /// A tracker for the number of new lines emitted during printing.
   NewLineCounter newLine;
 };

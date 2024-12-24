@@ -27,6 +27,12 @@ class FunctionType;
 class IndexType;
 class MemRefType;
 class VectorType;
+// UnRankedTensorType - only know it's a tensor of f32
+//   tensor<*xf32>
+// RankedTensorType examples:
+//   tensor<2x3xf32>     // Fully static shape: 2x3 matrix of f32
+//   tensor<?x3xf32>     // Partially dynamic: unknown first dimension, 3 columns
+//   tensor<?x?xf32>     // Dynamic shape but known rank (2D matrix)
 class RankedTensorType;
 class UnrankedTensorType;
 class TupleType;
