@@ -1,0 +1,35 @@
+{
+    "tablegenjmp.includePath": [
+        "mlir/include/",
+        "llvm/include/",
+    ],
+    "C_Cpp.default.includePath": [
+        "mlir/include/",
+        "llvm/include/",
+    ],
+    "C_Cpp.clang_format_sortIncludes": true,
+    "clangd.arguments": [
+        "--compile-commands-dir=build",
+    ],
+    "files.associations": {
+        "*.inc": "cpp",
+        "cstdint": "cpp"
+    },
+    "C_Cpp.clang_format_path": "build/bin/clang-format",
+    "C_Cpp.formatting": "clangFormat",
+    "C_Cpp.markdownInComments": "enabled",
+    "C_Cpp.experimentalFeatures": "enabled",
+    "clangd.enable": true,
+    "clangd.inactiveRegions.useBackgroundHighlight": true,
+    "clangd.path": "build/bin/clangd",
+    "editor.inlayHints.enabled": "onUnlessPressed",
+    "C_Cpp.inlayHints.autoDeclarationTypes.enabled": true,
+    "C_Cpp.inlayHints.autoDeclarationTypes.showOnLeft": false,
+    "C_Cpp.inlayHints.parameterNames.enabled": true,
+    "C_Cpp.inlayHints.parameterNames.hideLeadingUnderscores": false,
+    "C_Cpp.inlayHints.parameterNames.suppressWhenArgumentContainsName": false,
+    "C_Cpp.inlayHints.referenceOperator.enabled": true,
+    "C_Cpp.inlayHints.referenceOperator.showSpace": true,
+    "editor.inlayHints.padding": true,
+    "editor.inlayHints.fontFamily": "Consolas",
+}
