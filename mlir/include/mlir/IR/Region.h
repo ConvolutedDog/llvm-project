@@ -21,6 +21,8 @@ template <typename ValueRangeT>
 class ValueTypeRange;
 class IRMapping;
 
+/// 此类包含基本块的列表以及与其相连的 parent operation 的 link。
+///
 /// This class contains a list of basic blocks and a link to the parent
 /// operation it is attached to.
 class Region {
@@ -334,6 +336,10 @@ private:
   Operation *container = nullptr;
 };
 
+/// 此类提供了对 Regions 上 different types of ranges 的抽象。在许多情况下，这
+/// 可以避免显式实现 SmallVector/std::vector。此类应该用在不适合于 a more de-
+/// rived type (e.g. ArrayRef) 或 a template range 参数的地方。
+///
 /// This class provides an abstraction over the different types of ranges over
 /// Regions. In many cases, this prevents the need to explicitly materialize a
 /// SmallVector/std::vector. This class should be used in places that are not
@@ -344,6 +350,9 @@ class RegionRange
           RegionRange,
           PointerUnion<Region *, const std::unique_ptr<Region> *, Region **>,
           Region *, Region *, Region *> {
+  /// 表示此范围所有者的类型。这可以是区域的拥有列表、区域唯一指针列表或区域
+  /// 指针列表。
+  ///
   /// The type representing the owner of this range. This is either an owning
   /// list of regions, a list of region unique pointers, or a list of region
   /// pointers.

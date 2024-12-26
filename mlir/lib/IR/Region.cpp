@@ -14,6 +14,8 @@ using namespace mlir;
 Region::Region(Operation *container) : container(container) {}
 
 Region::~Region() {
+  // 操作可能有循环引用，在我们开始删除它们之前，需要先删除它们。
+  //
   // Operations may have cyclic references, which need to be dropped before we
   // can start deleting them.
   dropAllReferences();
@@ -26,6 +28,9 @@ MLIRContext *Region::getContext() {
   return container->getContext();
 }
 
+/// 返回此 region 的 location。这是附加到 parent container 的 location。该
+/// 区域必须具有有效的 parent container。
+///
 /// Return a location for this region. This is the location attached to the
 /// parent container. The region must have a valid parent container.
 Location Region::getLoc() {

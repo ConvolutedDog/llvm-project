@@ -157,6 +157,9 @@ public:
   /// probably in Dominance.cpp.
   Operation *findAncestorOpInBlock(Operation &op);
 
+  /// 这将从此 block 内的 operations 中删除所有 operand uses，这是在删除引用时
+  /// 打破引用之间的循环依赖关系的重要步骤。
+  ///
   /// This drops all operand uses from operations within this block, which is
   /// an essential step in breaking cyclic dependences between references when
   /// they are to be deleted.

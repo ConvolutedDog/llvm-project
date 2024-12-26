@@ -190,7 +190,7 @@ struct count_if_t_impl<Pred, N, T, Us...>
 template <template <class> class Pred, typename... Ts>
 using count_if_t = count_if_t_impl<Pred, 0, Ts...>;
 
-/// 此类提供了给定 `Interface` 类型与其 concept 的特定实现之间的有效映射。
+/// 此类提供了给定 `Interface` type 与其 concept 的特定实现之间的有效映射。
 ///
 /// This class provides an efficient mapping between a given `Interface` type,
 /// and a particular implementation of its concept.

@@ -28,6 +28,54 @@ namespace detail {
 enum class OpProperties : char {};
 } // namespace detail
 
+/// Operation 是 MLIR 中的基本执行单元。
+///
+/// 建议阅读以下文档以了解此类：
+/// - https://mlir.llvm.org/docs/LangRef/#operations
+/// - https://mlir.llvm.org/docs/Tutorials/UnderstandingTheIRStructure/
+///
+/// Operation 首先由其名称定义，该名称是一个唯一字符串。名称的解释是，如果它
+/// 包含 "." 字符，则之前的部分是此 Operation 所属的方言名称，后面的所有内容
+/// 都是方言中的此 Operation 名称。
+///
+/// Operation 定义零个或多个 SSA `Value`，我们将其称为 Operation results。这
+/// 个 array of Value 实际以相反的顺序存储在 Operation 之前的 memory 中。对
+/// 于具有 3 个结果的 Operation ，我们分配以下内存布局：
+///
+/// [Result2, Result1, Result0, Operation]
+///                             ^ 这是 `Operation*` 指针指向的位置。
+///
+/// 这样做的结果是，此类必须分配到堆中，由各种 `create` 方法处理。每个 result
+/// 包含：
+///  - 指向第一次使用的指针（参见 `OpOperand`）
+///  - 此结果定义的 SSA 值的类型。
+///  - 此结果在数组中的索引。
+/// Results 被定义为 `ValueImpl` 的子类，更准确地说是被定义为 `OpResultImpl`
+/// 的仅有的两个子类：`InlineOpResult` 和 `OutOfLineOpResult`。前者用于前 5
+/// 个结果，后者用于后续结果。它们在存储索引的方式上有所不同：前 5 个结果只
+/// 需要 3 位，因此与 Type 指针一起 paced，而后续结果具有额外的 `unsigned`
+/// value，因此需要更多空间。
+///
+/// Operation 也有零个或多个 Operation 数：这些是 SSA Value 的用途，可以是其他 Op
+/// 或 Block 参数的 results。这些用途中的每一个都是 `OpOperand` 的一个实例。
+/// 这个 optional array 最初与 Operation 类本身一起分配，但可以根据需要在动
+/// 态分配中动态 moved out-of-line 。
+///
+/// Operation 可以包含一个或多个 Regions（可选），存储在尾部分配的 array 中。
+/// 每个 `Region` 都是一个 `Block` 列表。每个 `Block` 本身就是一个 Operation
+/// 列表。这种结构实际上形成了一棵树。
+///
+/// 一些 Operation（如 branches）也引用其他 Block，在这种情况下，它们将有一
+/// 个 `BlockOperand` array。
+///
+/// Operation 可以包含可选的 "Properties" 对象：这是一个具有固定大小的预定义
+/// C++ 对象。此对象由 Operation 拥有并随 Operation 删除。它可以根据需要转换
+/// 为 Attribute，也可以从 Attribute 加载。
+///
+///
+/// 最后，Operation 还包含一个可选的 `DictionaryAttr`、一个 Location 和一个
+/// pointer to its parent Block (if any)。
+///
 /// Operation is the basic unit of execution within MLIR.
 ///
 /// The following documentation are recommended to understand this class:
@@ -87,6 +135,9 @@ class alignas(8) Operation final
                                     detail::OpProperties, BlockOperand, Region,
                                     OpOperand> {
 public:
+  /// 使用特定字段创建新 Operation。如有必要，此构造函数将使用默认属性填充提供的属性
+  /// 列表。
+  ///
   /// Create a new Operation with the specific fields. This constructor
   /// populates the provided attribute list with default attributes if
   /// necessary.
@@ -96,6 +147,8 @@ public:
                            OpaqueProperties properties, BlockRange successors,
                            unsigned numRegions);
 
+  /// 使用特定字段创建新 Operation。此构造函数使用现有属性字典，以避免唯一化属性列表。
+  ///
   /// Create a new Operation with the specific fields. This constructor uses an
   /// existing attribute dictionary to avoid uniquing a list of attributes.
   static Operation *create(Location location, OperationName name,
@@ -104,9 +157,13 @@ public:
                            OpaqueProperties properties, BlockRange successors,
                            unsigned numRegions);
 
+  /// 从存储在 `state` 中的字段创建一个新的 Operation。
+  ///
   /// Create a new Operation from the fields stored in `state`.
   static Operation *create(const OperationState &state);
 
+  /// 使用特定字段创建新 Operation。
+  ///
   /// Create a new Operation with the specific fields.
   static Operation *create(Location location, OperationName name,
                            TypeRange resultTypes, ValueRange operands,
@@ -115,25 +172,42 @@ public:
                            BlockRange successors = {},
                            RegionRange regions = {});
 
+  /// Operation 的名称是它的关键标识符。
+  ///
   /// The name of an operation is the key identifier for it.
   OperationName getName() { return name; }
 
+  /// 如果此 Operation 具有已注册的 Operation description，则返回它。否则返回
+  /// std::nullopt。
+  ///
   /// If this operation has a registered operation description, return it.
   /// Otherwise return std::nullopt.
   std::optional<RegisteredOperationName> getRegisteredInfo() {
     return getName().getRegisteredInfo();
   }
 
+  /// 如果此 Operation 具有注册的 Operation 描述，则返回 true，否则返回 false。
+  ///
   /// Returns true if this operation has a registered operation description,
   /// otherwise false.
   bool isRegistered() { return getName().isRegistered(); }
 
+  /// 从其 parent block 中移除此 Operation 并将其删除。
+  ///
   /// Remove this operation from its parent block and delete it.
   void erase();
 
+  /// 从其 parent block 中移除 Operation ，但不要删除它。
+  ///
   /// Remove the operation from its parent block, but don't delete it.
   void remove();
 
+  /// 包含与克隆 Operation 相关的各种 options 的类。此类的用户应将其传递给 Operation
+  /// 的 'clone' 方法。
+  /// 当前选项包括：
+  /// * 克隆是否应递归遍历 Operation 的 regions。
+  /// * 克隆是否还应克隆 Operation 的 operands。
+  ///
   /// Class encompassing various options related to cloning an operation. Users
   /// of this class should pass it to Operation's 'clone' methods.
   /// Current options include:
@@ -142,18 +216,32 @@ public:
   /// * Whether cloning should also clone the operands of the operation.
   class CloneOptions {
   public:
+    /// 默认构造一个选项，所有标志都设置为 false。这意味着 Operation 中可以选择不克隆
+    /// 的所有部分都不会被克隆。
+    ///
     /// Default constructs an option with all flags set to false. That means all
     /// parts of an operation that may optionally not be cloned, are not cloned.
     CloneOptions();
 
+    /// 构造一个实例，并相应设置克隆 regions 和克隆 operands 标志。
+    ///
     /// Constructs an instance with the clone regions and clone operands flags
     /// set accordingly.
     CloneOptions(bool cloneRegions, bool cloneOperands);
 
+    /// 返回一个所有标志都设置为 true 的实例。这是使用 clone 方法时的默认设置，可克隆
+    /// Operation 的所有部分。
+    ///
     /// Returns an instance with all flags set to true. This is the default
     /// when using the clone method and clones all parts of the operation.
     static CloneOptions all();
 
+    /// 配置克隆是否应遍历 Operation 的任何 regions。如果设置为 true，则 Operation
+    /// 的 regions 将被递归克隆。如果设置为 false，克隆的 Operation 将具有相同数量
+    /// 的 regions，但它们将为空。
+    ///
+    /// Operation 的 regions 中嵌套的 Operation 的克隆目前不受其他标志的影响。
+    ///
     /// Configures whether cloning should traverse into any of the regions of
     /// the operation. If set to true, the operation's regions are recursively
     /// cloned. If set to false, cloned operations will have the same number of
@@ -162,23 +250,39 @@ public:
     /// unaffected by other flags.
     CloneOptions &cloneRegions(bool enable = true);
 
+    /// 返回 Operation 的 regions 是否也应该被克隆。
+    ///
     /// Returns whether regions of the operation should be cloned as well.
     bool shouldCloneRegions() const { return cloneRegionsFlag; }
 
+    /// 配置是否应克隆 Operation 的 operands。否则，生成的克隆将只有零个 operand。
+    ///
     /// Configures whether operation' operands should be cloned. Otherwise the
     /// resulting clones will simply have zero operands.
     CloneOptions &cloneOperands(bool enable = true);
 
+    /// 返回 operands 是否也应该被克隆。
+    ///
     /// Returns whether operands should be cloned as well.
     bool shouldCloneOperands() const { return cloneOperandsFlag; }
 
   private:
+    /// 是否应该克隆 regions。
+    ///
     /// Whether regions should be cloned.
     bool cloneRegionsFlag : 1;
+    /// 是否应该克隆 operands。
+    ///
     /// Whether operands should be cloned.
     bool cloneOperandsFlag : 1;
   };
 
+  /// 创建此 Operation 的深层副本，使用提供的 map 来 remapping 使用 Operation 之
+  /// 外的 values 的任何 operands（如果不存在任何条目，则保留它们）。将对 cloned
+  /// sub-Operation 的引用替换为 the corresponding operation that is copied，
+  /// 并将这些 mappings 添加到 map 中。
+  /// 可选地，可以使用 options 参数配置要克隆 Operation 的哪些部分。
+  ///
   /// Create a deep copy of this operation, remapping any operands that use
   /// values outside of the operation using the map that is provided (leaving
   /// them alone if no entry is present).  Replaces references to cloned

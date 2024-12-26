@@ -42,6 +42,9 @@ class Type;
 ///
 class Dialect {
 public:
+  /// 方言提供的 call back 函数类型，用于解析自定义操作。这用于方言提供解析自定
+  /// 义操作（包括未注册的操作）的替代方法。
+  ///
   /// Type for a callback provided by the dialect to parse a custom operation.
   /// This is used for the dialect to provide an alternative way to parse custom
   /// operations, including unregistered ones.

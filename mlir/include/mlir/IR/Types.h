@@ -17,6 +17,77 @@
 namespace mlir {
 class AsmState;
 
+/// Type 类表示 MLIR 中各种数据类型的抽象基类。
+/// 
+/// Type 类的核心设计理念：
+///   - 唯一性 (Uniquing)：Type 实例是唯一的。这意味着即使创建了多个具有相同参数的类
+///     型，它们实际上都指向同一个内存位置。唯一性由 `detail::TypeUniquer` 类实现。
+///
+///   - 不变标识符 (Immutable Identifier)：每个 Type 实例都有一个不变的标识符，用于
+///     区分不同类型的实例。这个标识符是类型参数的一部分，一旦创建就无法更改。
+///
+///   - 可选可变组件 (Optional Mutable Component)：Type 可以包含一个可变组件，但在
+///     创建后修改这个组件不会改变 type 的标识符。这意味着可以修改 type 的一些非关键
+///     属性，而不会影响类型的唯一性。
+///
+///   - 基本类型和参数化类型 (Primitives and Parametric Types): 一些类型是基本类型
+///    （例如 Index 类型），没有参数。参数化类型则具有附加信息来区分同一类的不同类型
+///    （例如 Integer 类型有位宽，i8 和 i16 属于同一类，但它们是不同的 IntegerType
+///     实例）。
+///
+///   - 类型存储 (Type Storage)：Type 实例包装了一个指向由 MLIRContext 拥有的存储
+///     对象的指针。TypeStorage 及其派生类存储 type 信息，包括方言、参数和可变组件。
+///     DefaultTypeStorage 用于非参数化类型。
+///
+///   - 派生类型 (Derived Types)：Type 类是基类，具体的类型（如整数类型、浮点类型等）
+///     都是它的派生类。派生类需要实现一些方法来处理类型验证和构造。
+///
+///
+/// Type 类的实例是唯一的，具有 immutable identifier 和 an optional mutable com-
+/// ponent。它们包装指向 MLIRContext 拥有的存储对象的指针。因此，Type 的实例按值传递。
+///
+/// 某些类型是 "primitives"，这意味着它们没有任何参数，例如 Index 类型。Parametric
+/// types 具有区分同一类类型的附加信息，例如 Integer 类型具有位宽，使 i8 和 i16 属于
+/// 同类型，因为它们是 IntegerType 的不同实例。Parametric types 是 unique immutable
+/// key 的一部分。类型的 immutable component 可以在创建类型后进行修改，但不能影响类
+/// 型的 identity。
+///
+/// 类型是通过 'detail::TypeUniquer' 类构造和唯一化的。
+///
+/// Derived type classes 需要实现几个必需的 implementation hooks：
+/// * 可选的：
+///   - static LogicalResult verifyInvariants(
+///                               function_ref<InFlightDiagnostic()> emitError,
+///                               Args... args)
+///   * 调用 `TypeBase::get/getChecked` 方法时会调用此方法，以确保传入的参数对于构
+///     造 type 实例有效。
+///   * 如果无法使用 `args` 构造类型，则此方法应返回失败，否则返回成功。
+///   * `args` 必须与传递给 `TypeBase::get` 调用的参数相对应。
+///
+///
+/// Type storage objects 从 TypeStorage 继承并包含以下内容：
+///    - 定义 type 的方言。
+///    - type 的任何参数。
+///    - 可选的 mutable component。
+/// 对于 non-parametric types，提供了便利的 DefaultTypeStorage。
+/// Parametric storage types 必须派生于 TypeStorage 并遵守以下规定：
+///    - Define a type alias, KeyTy, to a type that uniquely identifies the
+///      instance of the type.
+///      * The key type 必须能够从传递到 `detail::TypeUniquer::get` call 的值构造。
+///      * 如果 KeyTy 没有 llvm::DenseMapInfo specialization，则 storage class
+///        必须定义哈希方法：
+///          `static unsigned hashKey(const KeyTy &)`
+///
+/// - 提供方法 `bool operator==(const KeyTy &) const`，将 storage instance 与
+///   an instance of the key type 进行比较。
+///
+/// - 提供静态构造方法：
+///     `DerivedStorage *construct(TypeStorageAllocator &, const KeyTy &key)`
+///   用于构建 an instance of the key type。此函数的参数是用于存储上下文中任何唯一
+///   数据的分配器和此存储的 key type。
+///
+/// - 如果它们具有可变组件，则该组件不能是 the key 的一部分。
+///
 /// Instances of the Type class are uniqued, have an immutable identifier and an
 /// optional mutable component.  They wrap a pointer to the storage object owned
 /// by MLIRContext.  Therefore, instances of Type are passed around by value.
@@ -73,6 +144,11 @@ class AsmState;
 ///      the key.
 class Type {
 public:
+  /// Example:
+  ///   class TestRecursiveType
+  ///       : public ::mlir::Type::TypeBase<TestRecursiveType, ::mlir::Type,
+  ///                                       TestRecursiveTypeStorage,
+  ///                                       ::mlir::TypeTrait::IsMutable> { ... }
   /// Utility class for implementing types.
   template <typename ConcreteType, typename BaseType, typename StorageType,
             template <typename T> class... Traits>

@@ -75,6 +75,8 @@ struct IsMutable : public StorageUserTraitBase<ConcreteType, IsMutable> {};
 //===----------------------------------------------------------------------===//
 
 namespace storage_user_base_impl {
+/// 如果给定的 Trait ID 与任何提供的 Trait types `Traits` 的 ID 匹配，则返回 true。
+///
 /// Returns true if this given Trait ID matches the IDs of any of the provided
 /// trait types `Traits`.
 template <template <typename T> class... Traits>
@@ -93,6 +95,10 @@ inline bool hasTrait(TypeID traitID) {
 }
 } // namespace storage_user_base_impl
 
+/// StorageUserBase 类的核心作用是提供一个通用的基类框架，用于管理在编译器中
+/// 需要唯一存储和管理的对象（例如属性或类型）。它简化了对象生命周期管理、接口
+/// 实现以及与唯一化存储机制的交互，从而提高代码的可重用性、可维护性和效率。
+///
 /// 用于实现由 StorageUniquer 唯一化的 users of storage classes 的实用程序
 /// 类。客户端不应直接与此类交互。
 ///
@@ -131,7 +137,10 @@ public:
     return val.getTypeID() == getTypeID();
   }
 
-  /// 返回注册到此存储用户的 interfaces 的 interface map。不应直接使用。
+  /// 返回注册到此 storage user 的 interfaces 的 interface map。不应直接使用。
+  ///
+  /// detail::InterfaceMap class 提供了给定 `Interface` type 与其 concept 的
+  /// 特定实现之间的有效映射。
   ///
   /// Returns an interface map for the interfaces registered to this storage
   /// user. This should not be used directly.
@@ -139,6 +148,9 @@ public:
     return detail::InterfaceMap::template get<Traits<ConcreteT>...>();
   }
 
+  /// 如果给定的 Trait ID 与 the storage user 定义的任何 traits 的 ID 匹配，则
+  /// 返回 true 的这样一个函数。
+  ///
   /// Returns the function that returns true if the given Trait ID matches the
   /// IDs of any of the traits defined by the storage user.
   static HasTraitFn getHasTraitFn() {
@@ -147,6 +159,8 @@ public:
     };
   }
 
+  /// 返回遍历 storage user 给定实例的 immediate sub elements 的函数。
+  ///
   /// Returns a function that walks immediate sub elements of a given instance
   /// of the storage user.
   static auto getWalkImmediateSubElementsFn() {
@@ -157,6 +171,8 @@ public:
     };
   }
 
+  /// 返回一个函数，该函数替换 storage user 的给定实例的直接子元素。
+  ///
   /// Returns a function that replaces immediate sub elements of a given
   /// instance of the storage user.
   static auto getReplaceImmediateSubElementsFn() {
@@ -223,6 +239,8 @@ public:
     return UniquerT::template get<ConcreteT>(ctx, args...);
   }
 
+  /// 从 a void pointer 获取 the concrete type 的实例。
+  ///
   /// Get an instance of the concrete type from a void pointer.
   static ConcreteT getFromOpaquePointer(const void *ptr) {
     return ConcreteT((const typename BaseT::ImplType *)ptr);

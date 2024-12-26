@@ -52,6 +52,9 @@ using namespace mlir::detail;
 //===----------------------------------------------------------------------===//
 
 namespace {
+/// 此结构包含可用于初始化 MLIRContext 各个位的命令行选项。这使用结构包装器来
+/// 避免对全局命令行选项的需求。
+///
 /// This struct contains command line options that can be used to initialize
 /// various bits of an MLIRContext. This uses a struct wrapper to avoid the need
 /// for global command line options.
@@ -84,6 +87,9 @@ static bool isThreadingGloballyDisabled() {
 #endif
 }
 
+/// 注册一组有用的命令行选项，可用于配置 MLIRContext 中的各种标志。在构建 MLIR
+/// 上下文进行初始化时使用这些标志。
+///
 /// Register a set of useful command-line options that can be used to configure
 /// various flags within the MLIRContext. These flags are used when constructing
 /// an MLIR context for initialization.

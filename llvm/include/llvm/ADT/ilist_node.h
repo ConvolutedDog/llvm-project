@@ -24,6 +24,9 @@ namespace ilist_detail {
 
 struct NodeAccess;
 
+/// Mixin 基类用于将 \a getParent() 和 \a setParent(ParentTy*) 方法添加到 \a
+/// ilist_node_impl 当且仅当 \a ilist_parent 已在列表选项中设置。
+///
 /// Mixin base class that is used to add \a getParent() and
 /// \a setParent(ParentTy*) methods to \a ilist_node_impl iff \a ilist_parent
 /// has been set in the list options.
@@ -48,6 +51,8 @@ template <class OptionsT, bool IsReverse, bool IsConst>
 class ilist_iterator_w_bits;
 template <class OptionsT> class ilist_sentinel;
 
+// 根据 iterator-bits node option 来选择 iterator type 的选择器。
+//
 // Selector for which iterator type to pick given the iterator-bits node option.
 template <bool use_iterator_bits, typename Opts, bool arg1, bool arg2>
 class ilist_select_iterator_type {

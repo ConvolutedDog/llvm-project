@@ -29,6 +29,8 @@ class Type;
 /// AttrTypeWalker
 //===----------------------------------------------------------------------===//
 
+/// 此类提供用于遍历 attributes/types 及其子元素的实用程序。可以注册多个遍历函数。
+///
 /// This class provides a utility for walking attributes/types, and their sub
 /// elements. Multiple walk functions may be registered.
 class AttrTypeWalker {
@@ -37,6 +39,8 @@ public:
   // Application
   //===--------------------------------------------------------------------===//
 
+  /// 遍历给定的 attributes/types，并递归遍历任何子元素。
+  ///
   /// Walk the given attribute/type, and recursively walk any sub elements.
   template <WalkOrder Order, typename T>
   WalkResult walk(T element) {
@@ -54,6 +58,17 @@ public:
   template <typename T>
   using WalkFn = std::function<WalkResult(T)>;
 
+  /// 为给定的 attributes/types 注册一个遍历函数。遍历函数必须可转换为以下任何一种形
+  /// 式（其中 `T` 是从 `Type` 或 `Attribute` 派生的类）：
+  ///
+  ///   * WalkResult(T)
+  ///     - 返回遍历结果，可用于控制遍历
+  ///
+  ///   * void(T)
+  ///     - 返回 void，即遍历始终继续。
+  ///
+  /// 注意：遍历时，将首先调用最近添加的遍历函数。
+  ///
   /// Register a walk function for a given attribute or type. A walk function
   /// must be convertible to any of the following forms(where `T` is a class
   /// derived from `Type` or `Attribute`:
@@ -71,6 +86,9 @@ public:
   }
   void addWalk(WalkFn<Type> &&fn) { typeWalkFns.push_back(std::move(fn)); }
 
+  /// 注册一个与 default signature 不匹配的替换函数，因为它使用派生的参数类型，或者
+  /// 使用简化的结果类型。
+  ///
   /// Register a replacement function that doesn't match the default signature,
   /// either because it uses a derived parameter type, or it uses a simplified
   /// result type.
@@ -101,14 +119,20 @@ private:
   template <typename T, typename WalkFns>
   WalkResult walkImpl(T element, WalkFns &walkFns, WalkOrder order);
 
+  /// 遍历给定接口的子元素。
+  ///
   /// Walk the sub elements of the given interface.
   template <typename T>
   WalkResult walkSubElements(T interface, WalkOrder order);
 
+  /// 映射子元素的遍历函数集。
+  ///
   /// The set of walk functions that map sub elements.
   std::vector<WalkFn<Attribute>> attrWalkFns;
   std::vector<WalkFn<Type>> typeWalkFns;
 
+  /// 访问过的 attributes/types 的集合。
+  ///
   /// The set of visited attributes/types.
   DenseMap<std::pair<const void *, int>, WalkResult> visitedAttrTypes;
 };

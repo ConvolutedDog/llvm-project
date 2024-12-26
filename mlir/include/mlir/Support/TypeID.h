@@ -232,15 +232,24 @@ inline ::llvm::hash_code hash_value(TypeID id) {
 //===----------------------------------------------------------------------===//
 
 namespace detail {
+/// 此类为解析 TypeID 提供了后备方法。它使用类型的字符串名称来执行解析，因此不允许使
+/// 用在 "anonymous" contexts 中定义的类。
+///
 /// This class provides a fallback for resolving TypeIDs. It uses the string
 /// name of the type to perform the resolution, and as such does not allow the
 /// use of classes defined in "anonymous" contexts.
 class FallbackTypeIDResolver {
 protected:
+  /// 为给定的类型名称注册一个 implicit type ID。
+  ///
   /// Register an implicit type ID for the given type name.
   static TypeID registerImplicitTypeID(StringRef name);
 };
 
+/// 此类提供了一个解析器，用于获取给定 class T 的 ID。这允许派生 type 专门化其解析行
+/// 为。默认实现使用类型的字符串名称来解析 ID。这提供了一个强大的定义，但以性能为代价
+/// （我们需要进行初始查找），并且在 "anonymous" contexts  中定义的类无法使用。
+///
 /// This class provides a resolver for getting the ID for a given class T. This
 /// allows for the derived type to specialize its resolution behavior. The
 /// default implementation uses the string name of the type to resolve the ID.
@@ -255,6 +264,11 @@ protected:
 template <typename T, typename Enable = void>
 class TypeIDResolver : public FallbackTypeIDResolver {
 public:
+  /// Trait 用于检查 `U` 是否已完全解析。我们使用它来验证在尝试解析 TypeID 时 `T` 是
+  /// 否已完全解析。从技术上讲，我们不需要对 `T` 进行完整定义以进行 fallback，但它确
+  /// 实有助于防止 a forward declared type 使用此 fallback 的情况，即使在定义 `T`
+  /// 的位置对 TypeID 有强定义。
+  ///
   /// Trait to check if `U` is fully resolved. We use this to verify that `T` is
   /// fully resolved when trying to resolve a TypeID. We don't technically need
   /// to have the full definition of `T` for the fallback, but it does help
@@ -266,9 +280,15 @@ public:
   template <typename U>
   using is_fully_resolved = llvm::is_detected<is_fully_resolved_trait, U>;
 
+  /// 为给定的类型名称注册一个 implicit type ID。
+  ///
+  /// Register an implicit type ID for the given type name.
   static TypeID resolveTypeID() {
     static_assert(is_fully_resolved<T>::value,
                   "TypeID::get<> requires the complete definition of `T`");
+    // 为给定的类型名称注册一个 implicit type ID。
+    //
+    // Register an implicit type ID for the given type name.
     static TypeID id = registerImplicitTypeID(llvm::getTypeName<T>());
     return id;
   }
