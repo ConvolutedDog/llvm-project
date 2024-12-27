@@ -301,6 +301,10 @@ public:
                    CloneOptions options = CloneOptions::all());
   Operation *clone(CloneOptions options = CloneOptions::all());
 
+  /// 创建此 operation 的 partial 副本，而无需遍历附加 regions。新 operation 将具
+  /// 有与原始 operation 相同数量的 regions，但它们将留空。使用 `mapper`（如果存在）
+  /// 重新映射 operands，并更新 `mapper` 以包含结果。
+  ///
   /// Create a partial copy of this operation without traversing into attached
   /// regions. The new operation will have the same number of regions as the
   /// original one, but they will be left empty.
@@ -308,35 +312,55 @@ public:
   /// to contain the results.
   Operation *cloneWithoutRegions(IRMapping &mapper);
 
+  /// 创建此 operation 的 partial 副本，而无需遍历附加 regions。新 operation 将具
+  /// 有与原始 operation 相同数量的 regions，但它们将留空。
+  ///
   /// Create a partial copy of this operation without traversing into attached
   /// regions. The new operation will have the same number of regions as the
   /// original one, but they will be left empty.
   Operation *cloneWithoutRegions();
 
+  /// 返回包含该 operation 的 operation block。
+  ///
   /// Returns the operation block that contains this operation.
   Block *getBlock() { return block; }
 
+  /// 返回与此 operation 关联的上下文。
+  ///
   /// Return the context this operation is associated with.
   MLIRContext *getContext() { return location->getContext(); }
 
+  /// 返回与此 operation 相关的方言，如果未加载相关的方言，则返回 nullptr。
+  ///
   /// Return the dialect this operation is associated with, or nullptr if the
   /// associated dialect is not loaded.
   Dialect *getDialect() { return getName().getDialect(); }
 
+  /// 定义或派生 operation 的 source location。
+  ///
   /// The source location the operation was defined or derived from.
   Location getLoc() { return location; }
 
+  /// 设置定义或派生 operation 的 source location。
+  ///
   /// Set the source location the operation was defined or derived from.
   void setLoc(Location loc) { location = loc; }
 
+  /// 返回 instruction 所属的 region。如果指令 is unlinked，则返回 nullptr。
+  ///
   /// Returns the region to which the instruction belongs. Returns nullptr if
   /// the instruction is unlinked.
   Region *getParentRegion() { return block ? block->getParent() : nullptr; }
 
+  /// 返回包含此 operation 的最近的 surrounding operation；如果这是 top-level
+  /// operation，则返回 nullptr。
+  ///
   /// Returns the closest surrounding operation that contains this operation
   /// or nullptr if this is a top-level operation.
   Operation *getParentOp() { return block ? block->getParentOp() : nullptr; }
 
+  /// 返回类型为 'OpTy' 的最近的 surrounding parent operation。
+  ///
   /// Return the closest surrounding parent operation that is of type 'OpTy'.
   template <typename OpTy>
   OpTy getParentOfType() {
@@ -347,6 +371,8 @@ public:
     return OpTy();
   }
 
+  /// 返回具有的 trait 为 `Trait` 的最近的 surrounding parent operation。
+  ///
   /// Returns the closest surrounding parent operation with trait `Trait`.
   template <template <typename T> class Trait>
   Operation *getParentWithTrait() {
@@ -357,10 +383,16 @@ public:
     return nullptr;
   }
 
+  /// 如果此 operation 是 the `other` operation 的 a proper ancestor，则
+  /// 返回 true。
+  ///
   /// Return true if this operation is a proper ancestor of the `other`
   /// operation.
   bool isProperAncestor(Operation *other);
 
+  /// 如果此 operation 是 the `other` operation 的祖先，则返回 true。 
+  /// operation 被视为其自己的祖先，使用 `isProperAncestor` 可避免这种情况。
+  ///
   /// Return true if this operation is an ancestor of the `other` operation. An
   /// operation is considered as its own ancestor, use `isProperAncestor` to
   /// avoid this.
@@ -368,15 +400,22 @@ public:
     return this == other || isProperAncestor(other);
   }
 
+  /// 在此 operation 中，将所有是 'from' 的 operands 替换为 'to'。
+  ///
   /// Replace any uses of 'from' with 'to' within this operation.
   void replaceUsesOfWith(Value from, Value to);
 
+  /// 用提供的 `values` 替换此 operation 的所有 results。
+  ///
   /// Replace all uses of results of this operation with the provided 'values'.
   template <typename ValuesT>
   void replaceAllUsesWith(ValuesT &&values) {
     getResults().replaceAllUsesWith(std::forward<ValuesT>(values));
   }
 
+  /// 如果给定的 callback（即 `function_ref<bool(OpOperand &)> shouldReplace`）
+  /// 返回 true，则用提供的 `values` 替换此 operation 的 results。
+  ///
   /// Replace uses of results of this operation with the provided `values` if
   /// the given callback returns true.
   template <typename ValuesT>
@@ -386,35 +425,61 @@ public:
                                    shouldReplace);
   }
 
+  /// 销毁此 operation 及其子类数据。
+  ///
   /// Destroys this operation and its subclass data.
   void destroy();
 
+  /// 这将从该 operation 中删除所有 operands 的 uses，这是在删除引用时打破引用之
+  /// 间的循环依赖关系的重要步骤。
+  ///
   /// This drops all operand uses from this operation, which is an essential
   /// step in breaking cyclic dependences between references when they are to
   /// be deleted.
   void dropAllReferences();
 
+  /// 删除由此 operation 或其嵌套 regions 定义的所有 values 的使用。
+  ///
   /// Drop uses of all values defined by this operation or its nested regions.
   void dropAllDefinedValueUses();
 
+  /// 取消此 operation 与它的 current block 的链接，并将其插入到 `existingOp` 之
+  /// 前，该 `existingOp` operation 可能位于同一个 block 中，也可能位于同一函数中
+  /// 的另一个 block 中。
+  ///
   /// Unlink this operation from its current block and insert it right before
   /// `existingOp` which may be in the same or another block in the same
   /// function.
   void moveBefore(Operation *existingOp);
 
+  /// 取消此 operation 与它的 current block 的链接，并将其将其插入到指定 block 中
+  /// 的 `iterator` 之前。
+  ///
   /// Unlink this operation from its current block and insert it right before
   /// `iterator` in the specified block.
   void moveBefore(Block *block, llvm::iplist<Operation>::iterator iterator);
 
+  /// 取消此 operation 与它的 current block 的链接，并将其插入到 `existingOp` 之
+  /// 后，该 `existingOp` operation 可能位于同一个 block 中，也可能位于同一函数中
+  /// 的另一个 block 中。
+  ///
   /// Unlink this operation from its current block and insert it right after
   /// `existingOp` which may be in the same or another block in the same
   /// function.
   void moveAfter(Operation *existingOp);
 
+  /// 取消此 operation 与它的 current block 的链接，并将其将其插入到指定 block 中
+  /// 的 `iterator` 之后。
+  ///
   /// Unlink this operation from its current block and insert it right after
   /// `iterator` in the specified block.
   void moveAfter(Block *block, llvm::iplist<Operation>::iterator iterator);
 
+  /// 给定一个位于同一 parent block 内的 operation `other`，返回当前 operation 是
+  /// 否在 parent block 的 operation 列表中位于 `other` 之前。
+  /// 注意：此函数的平均复杂度为 O(1)，但最坏情况可能需要 O(N)，其中 N 是 parent
+  /// block 内的 operation 总数量。
+  ///
   /// Given an operation 'other' that is within the same parent block, return
   /// whether the current operation is before 'other' in the operation list
   /// of the parent block.
@@ -430,36 +495,52 @@ public:
   // Operands
   //===--------------------------------------------------------------------===//
 
+  /// 用 'operands' 中提供的 operands 替换此 operation 的当前 operands。
+  ///
   /// Replace the current operands of this operation with the ones provided in
   /// 'operands'.
   void setOperands(ValueRange operands);
 
+  /// 用参数 `operands` 中提供的 operands 替换从 'start' 开始到 'start' + 'length'
+  /// 结束的 operands。'operands' 可能小于或大于 'start'+'length' 指向的范围。
+  ///
   /// Replace the operands beginning at 'start' and ending at 'start' + 'length'
   /// with the ones provided in 'operands'. 'operands' may be smaller or larger
   /// than the range pointed to by 'start'+'length'.
   void setOperands(unsigned start, unsigned length, ValueRange operands);
 
+  /// 将给定的 operands 插入到给定 'index' 处的 operand list 中。
+  ///
   /// Insert the given operands into the operand list at the given 'index'.
   void insertOperands(unsigned index, ValueRange operands);
 
+  /// 返回 operands 的数量。
   unsigned getNumOperands() {
     return LLVM_LIKELY(hasOperandStorage) ? getOperandStorage().size() : 0;
   }
 
+  /// 返回此 operand 当前使用的 the current value。
   Value getOperand(unsigned idx) { return getOpOperand(idx).get(); }
   void setOperand(unsigned idx, Value value) {
     return getOpOperand(idx).set(value);
   }
 
+  /// 擦除位置 `idx` 处的 operand。
+  ///
   /// Erase the operand at position `idx`.
   void eraseOperand(unsigned idx) { eraseOperands(idx); }
 
+  /// 擦除从位置 `idx` 开始到位置 `idx`+`length` 结束的 operand。
+  ///
   /// Erase the operands starting at position `idx` and ending at position
   /// 'idx'+'length'.
   void eraseOperands(unsigned idx, unsigned length = 1) {
     getOperandStorage().eraseOperands(idx, length);
   }
 
+  /// 擦除在 `eraseIndices` 中设置了相应位的 operands，并将它们从 operand
+  /// list 中删除。
+  ///
   /// Erases the operands that have their corresponding bit set in
   /// `eraseIndices` and removes them from the operand list.
   void eraseOperands(const BitVector &eraseIndices) {
@@ -473,17 +554,21 @@ public:
   operand_iterator operand_begin() { return getOperands().begin(); }
   operand_iterator operand_end() { return getOperands().end(); }
 
+  /// 返回 the underlying Value 的 iterator。
+  ///
   /// Returns an iterator on the underlying Value's.
   operand_range getOperands() {
     MutableArrayRef<OpOperand> operands = getOpOperands();
     return OperandRange(operands.data(), operands.size());
   }
 
+  /// 返回 storage 中保存的 operands。
   MutableArrayRef<OpOperand> getOpOperands() {
     return LLVM_LIKELY(hasOperandStorage) ? getOperandStorage().getOperands()
                                           : MutableArrayRef<OpOperand>();
   }
 
+  /// 返回 storage 中保存的第 idx 个 operand。
   OpOperand &getOpOperand(unsigned idx) {
     return getOperandStorage().getOperands()[idx];
   }
@@ -499,9 +584,13 @@ public:
   // Results
   //===--------------------------------------------------------------------===//
 
+  /// 返回此 operation 所持有的 results 的数量。
+  ///
   /// Return the number of results held by this operation.
   unsigned getNumResults() { return numResults; }
 
+  /// 返回此 operation 所持有的第 `idx` 个 result。
+  ///
   /// Get the 'idx'th result of this operation.
   OpResult getResult(unsigned idx) { return OpResult(getOpResultImpl(idx)); }
 
@@ -530,10 +619,16 @@ public:
   // Attributes
   //===--------------------------------------------------------------------===//
 
+  // Operations 可以选择性地携带将 constants 与 names 关联的 attributes 列表。可
+  // 以在 operation 的整个生命周期内动态添加和删除 attributes。
+  //
   // Operations may optionally carry a list of attributes that associate
   // constants to names.  Attributes may be dynamically added and removed over
   // the lifetime of an operation.
 
+  /// 通过 name 访问 an inherent attribute：如果不存在具有此 name 的 an inherent
+  /// attribute，则返回 an empty optional。
+  ///
   /// Access an inherent attribute by name: returns an empty optional if there
   /// is no inherent attribute with this name.
   ///
@@ -541,20 +636,28 @@ public:
   /// to use Properties instead.
   std::optional<Attribute> getInherentAttr(StringRef name);
 
+  /// 按 name 设置 an inherent attribute。
+  ///
   /// Set an inherent attribute by name.
   ///
   /// This method is available as a transient facility in the migration process
   /// to use Properties instead.
   void setInherentAttr(StringAttr name, Attribute value);
 
+  /// 通过 name 访问可丢弃 attribute，如果可丢弃属性不存在则返回 an null Attribute。
+  ///
   /// Access a discardable attribute by name, returns an null Attribute if the
   /// discardable attribute does not exist.
   Attribute getDiscardableAttr(StringRef name) { return attrs.get(name); }
 
+  /// 通过 name 访问可丢弃 attribute，如果可丢弃属性不存在则返回 an null Attribute。
+  ///
   /// Access a discardable attribute by name, returns an null Attribute if the
   /// discardable attribute does not exist.
   Attribute getDiscardableAttr(StringAttr name) { return attrs.get(name); }
 
+  /// 通过 name 设置可丢弃的 attribute。
+  ///
   /// Set a discardable attribute by name.
   void setDiscardableAttr(StringAttr name, Attribute value) {
     NamedAttrList attributes(attrs);
@@ -565,6 +668,9 @@ public:
     setDiscardableAttr(StringAttr::get(getContext(), name), value);
   }
 
+  /// 如果存在具有指定 name 的可丢弃 attribute，则将其删除。
+  /// 返回上步被删除的 attribute，如果不存在具有该名称的属性，则返回 nullptr。
+  ///
   /// Remove the discardable attribute with the specified name if it exists.
   /// Return the attribute that was erased, or nullptr if there was no attribute
   /// with such name.
@@ -579,6 +685,10 @@ public:
     return removeDiscardableAttr(StringAttr::get(getContext(), name));
   }
 
+  /// 返回此 operation 中所有可丢弃 attributes 的 range。请注意，对于未将 inherent
+  /// attributes 存储为 properties 的 unregistered operations，所有 attributes
+  /// 均被视为可丢弃。
+  ///
   /// Return a range of all of discardable attributes on this operation. Note
   /// that for unregistered operations that are not storing inherent attributes
   /// as properties, all attributes are considered discardable.
@@ -595,6 +705,8 @@ public:
         });
   }
 
+  /// 将此 operation 上的所有可丢弃 attributes 作为 DictionaryAttr 返回。
+  ///
   /// Return all of the discardable attributes on this operation as a
   /// DictionaryAttr.
   DictionaryAttr getDiscardableAttrDictionary() {
@@ -604,20 +716,30 @@ public:
                                llvm::to_vector(getDiscardableAttrs()));
   }
 
+  /// 返回所有未存储为 properties 的 attributes。
+  ///
   /// Return all attributes that are not stored as properties.
   DictionaryAttr getRawDictionaryAttrs() { return attrs; }
 
+  /// 返回此 operation 的所有属性。
+  ///
   /// Return all of the attributes on this operation.
   ArrayRef<NamedAttribute> getAttrs() { return getAttrDictionary().getValue(); }
 
+  /// 将此 operation 的所有 attributes 作为 DictionaryAttr 返回。
+  ///
   /// Return all of the attributes on this operation as a DictionaryAttr.
   DictionaryAttr getAttrDictionary();
 
+  /// 在此 operation 中设置 attributes from a dictionary。
+  ///
   /// Set the attributes from a dictionary on this operation.
   /// These methods are expensive: if the dictionnary only contains discardable
   /// attributes, `setDiscardableAttrs` is more efficient.
   void setAttrs(DictionaryAttr newAttrs);
   void setAttrs(ArrayRef<NamedAttribute> newAttrs);
+  /// 在此 operation 上设置可丢弃的 attribute dictionary。
+  ///
   /// Set the discardable attribute dictionary on this operation.
   void setDiscardableAttrs(DictionaryAttr newAttrs) {
     assert(newAttrs && "expected valid attribute dictionary");
@@ -627,6 +749,8 @@ public:
     setDiscardableAttrs(DictionaryAttr::get(getContext(), newAttrs));
   }
 
+  /// 根据 name 获取 attribute。如果存在，则返回指定的 attribute，否则返回 null。
+  ///
   /// Return the specified attribute if present, null otherwise.
   /// These methods are expensive: if the dictionnary only contains discardable
   /// attributes, `getDiscardableAttr` is more efficient.
@@ -654,6 +778,8 @@ public:
     return llvm::dyn_cast_or_null<AttrClass>(getAttr(name));
   }
 
+  /// 如果 operation 具有所提供 name 的 attribute，则返回 true，否则返回 false。
+  ///
   /// Return true if the operation has an attribute with the provided name,
   /// false otherwise.
   bool hasAttr(StringAttr name) {
@@ -676,6 +802,9 @@ public:
         getAttrOfType<AttrClass>(std::forward<NameT>(name)));
   }
 
+  /// 如果存在具有指定 name 的 attribute，则将其更改为 new value。否则，添加具有指
+  /// 定 name 或 value 的 a new attribute。
+  ///
   /// If the an attribute exists with the specified name, change it to the new
   /// value. Otherwise, add a new attribute with the specified name/value.
   void setAttr(StringAttr name, Attribute value) {
@@ -693,6 +822,9 @@ public:
     setAttr(StringAttr::get(getContext(), name), value);
   }
 
+  /// 如果存在具有指定 name 的 attribute，则删除该 attribute。返回被删除的 attribute，
+  /// 如果不存在具有该 name 的 attribute，则返回 nullptr。
+  ///
   /// Remove the attribute with the specified name if it exists. Return the
   /// attribute that was erased, or nullptr if there was no attribute with such
   /// name.
@@ -713,15 +845,23 @@ public:
     return removeAttr(StringAttr::get(getContext(), name));
   }
 
+  /// 过滤 non-dialect attributes 的实用迭代器。
+  ///
+  /// `bool (*)(NamedAttribute)` 其实是一个可调用的过滤函数，过滤器会在迭代时跳过所
+  /// 有该过滤函数返回 false 的元素。
+  ///
   /// A utility iterator that filters out non-dialect attributes.
   class dialect_attr_iterator
       : public llvm::filter_iterator<ArrayRef<NamedAttribute>::iterator,
                                      bool (*)(NamedAttribute)> {
     static bool filter(NamedAttribute attr) {
+      // 过滤条件：Dialect attributes 以 dialect 名称为前缀，就像 operations 一样。
+      //
       // Dialect attributes are prefixed by the dialect name, like operations.
       return attr.getName().strref().count('.');
     }
 
+    /// 用 `filter` 函数过滤从 it 到 end 的所有 NamedAttributes。
     explicit dialect_attr_iterator(ArrayRef<NamedAttribute>::iterator it,
                                    ArrayRef<NamedAttribute>::iterator end)
         : llvm::filter_iterator<ArrayRef<NamedAttribute>::iterator,
@@ -730,8 +870,18 @@ public:
     // Allow access to the constructor.
     friend Operation;
   };
+  /// iterator_range 类模板充当迭代器对的 range adaptor。简单来说，它将一对迭代器包
+  /// 装起来，使其能够像标准库中的 range（例如 std::vector 或 std::array）一样使用，
+  /// 例如在基于 range 的 for 循环中。
+  ///
+  ///  - 模板参数 `IteratorT`: 指定迭代器的类型。 这意味着 iterator_range 可以用于
+  ///    各种类型的迭代器。
+  ///  - iterator_range 的成员变量 begin_iterator, end_iterator: 分别存储范围的起
+  ///    始迭代器和结束迭代器。
   using dialect_attr_range = iterator_range<dialect_attr_iterator>;
 
+  /// 返回与此 operation 的 dialect attributes 相对应的 range。
+  ///
   /// Return a range corresponding to the dialect attributes for this operation.
   dialect_attr_range getDialectAttrs() {
     auto attrs = getAttrs();
@@ -747,6 +897,8 @@ public:
     return dialect_attr_iterator(attrs.end(), attrs.end());
   }
 
+  /// 为此 operation 设置 dialect attributes，并保留 all inherent。
+  ///
   /// Set the dialect attributes for this operation, and preserve all inherent.
   template <typename DialectAttrT>
   void setDialectAttrs(DialectAttrT &&dialectAttrs) {
@@ -758,6 +910,8 @@ public:
     setAttrs(attrs.getDictionary(getContext()));
   }
 
+  /// 对 unset attributes 设置 default attributes。
+  ///
   /// Sets default attributes on unset attributes.
   void populateDefaultAttrs() {
     NamedAttrList attrs(getAttrDictionary());
@@ -769,9 +923,13 @@ public:
   // Blocks
   //===--------------------------------------------------------------------===//
 
+  /// 返回此 operation 所持有的 regions 总数。
+  ///
   /// Returns the number of regions held by this operation.
   unsigned getNumRegions() { return numRegions; }
 
+  /// 返回此 operation 所持有的 regions。
+  ///
   /// Returns the regions held by this operation.
   MutableArrayRef<Region> getRegions() {
     // Check the count first, as computing the trailing objects can be slow.
@@ -782,6 +940,8 @@ public:
     return {regions, numRegions};
   }
 
+  /// 返回此 operation 在位置 `index` 处持有的 region。
+  ///
   /// Returns the region held by this operation at position 'index'.
   Region &getRegion(unsigned index) {
     assert(index < numRegions && "invalid region index");
@@ -792,6 +952,22 @@ public:
   // Successors
   //===--------------------------------------------------------------------===//
 
+  // 不同情况下的 Successors：
+  //  - 顺序执行: 对于大多数简单的 Operation，它们的 Successor 只是 CFG 中紧随其后的
+  //             Operation。 这类似于在普通代码中，语句按顺序执行。
+  //  - 条件分支 (if-else, switch): 条件分支 Operation 会有多个 Successors。例如，
+  //             if Operation 通常有两个 Successors：一个对应 then 块，另一个对应
+  //             else 块（或 else 块为空）。switch 操作符会有多个 successors，对应
+  //             于不同的 case。
+  //  - 循环 (for, while): 循环 Operation 的 Successors 相对比较复杂。循环体内部的
+  //             Operation 的 Successor 可能指向循环体内的下一个 Operation，也可能
+  //             指向循环条件检查 Operation。循环结束后的 Successor 是循环后面的
+  //             Operation。
+  //  - 函数调用: 函数调用 Operation 的 Successor 是函数调用返回后的 Operation。
+  //  - 跳转 (goto, branch): 跳转 Operation 会明确指定其 Successor 为 CFG 中的另一
+  //             个 Block 或 Operation。
+
+  /// 返回 Block Operand 的列表。
   MutableArrayRef<BlockOperand> getBlockOperands() {
     return {getTrailingObjects<BlockOperand>(), numSuccs};
   }
@@ -805,16 +981,26 @@ public:
   bool hasSuccessors() { return numSuccs != 0; }
   unsigned getNumSuccessors() { return numSuccs; }
 
+  /// 获取当前 operation 的第 index 个 Successor。
   Block *getSuccessor(unsigned index) {
     assert(index < getNumSuccessors());
     return getBlockOperands()[index].get();
   }
+  /// 设置当前 operation 的第 index 个 Successor。
   void setSuccessor(Block *block, unsigned index);
 
   //===--------------------------------------------------------------------===//
   // Accessors for various properties of operations
   //===--------------------------------------------------------------------===//
 
+  /// 尝试使用 the specified constant operand values 折叠此 operation
+  /// - `operands` 中的元素将直接对应于操作的操作数，但如果非常量则可能为空。
+  ///
+  /// 如果折叠成功，则此函数返回 "success"。
+  /// * 如果此操作被就地修改（但未被折叠），则 `results` 为空。
+  /// * 否则，`results` 将被 folded results 填充。
+  /// 如果折叠不成功，则此函数返回 "failure"。
+  ///
   /// Attempt to fold this operation with the specified constant operand values
   /// - the elements in "operands" will correspond directly to the operands of
   /// the operation, but may be null if non-constant.
@@ -827,6 +1013,13 @@ public:
   LogicalResult fold(ArrayRef<Attribute> operands,
                      SmallVectorImpl<OpFoldResult> &results);
 
+  /// 尝试折叠此 operation。
+  ///
+  /// 如果折叠成功，则此函数返回 "success"。
+  /// * 如果此操作被就地修改（但未被折叠），则 `results` 为空。
+  /// * 否则，`results` 将被 folded results 填充。
+  /// 如果折叠不成功，则此函数返回 "failure"。
+  ///
   /// Attempt to fold this operation.
   ///
   /// If folding was successful, this function returns "success".
@@ -836,6 +1029,8 @@ public:
   /// If folding was unsuccessful, this function returns "failure".
   LogicalResult fold(SmallVectorImpl<OpFoldResult> &results);
 
+  /// 如果 `InterfaceT` 已被方言承诺或已实现，则返回 true。
+  ///
   /// Returns true if `InterfaceT` has been promised by the dialect or
   /// implemented.
   template <typename InterfaceT>
@@ -843,6 +1038,9 @@ public:
     return name.hasPromiseOrImplementsInterface<InterfaceT>();
   }
 
+  /// 如果 operation 已注册 a particular trait，则返回 true，例如
+  /// `hasTrait<OperandsAreSignlessIntegerLike>()`。
+  ///
   /// Returns true if the operation was registered with a particular trait, e.g.
   /// hasTrait<OperandsAreSignlessIntegerLike>().
   template <template <typename T> class Trait>
@@ -850,6 +1048,9 @@ public:
     return name.hasTrait<Trait>();
   }
 
+  /// 如果 operation *might* 具有提供的 trait，则返回 true。这意味着该 operation 要
+  /// 么未注册，要么已使用提供的 trait 进行注册。
+  ///
   /// Returns true if the operation *might* have the provided trait. This
   /// means that either the operation is unregistered, or it was registered with
   /// the provide trait.
@@ -1015,11 +1216,22 @@ public:
         reinterpret_cast<void *>(getTrailingObjects<detail::OpProperties>())};
   }
 
+  /// 返回被转换为 an attribute 的 properties。
+  /// 这很昂贵，并且在处理 unregistered operation 时非常有用。如果不存在任何
+  /// properties，则返回 an empty attribute。
+  ///
   /// Return the properties converted to an attribute.
   /// This is expensive, and mostly useful when dealing with unregistered
   /// operation. Returns an empty attribute if no properties are present.
   Attribute getPropertiesAsAttribute();
 
+  /// 从 provided attribute 中设置 properties。
+  /// 这是 an expensive operation，如果 attribute 不符合 the expectations
+  /// of the properties for this operation，则可能会失败。
+  /// 这主要用于 unregistered operation 或在解析通用格式时使用。可以传入可选的
+  /// diagnostic emitter 以获得更丰富的错误，如果没有传入，则在错误情况下行为未
+  /// 定义。
+  ///
   /// Set the properties from the provided attribute.
   /// This is an expensive operation that can fail if the attribute is not
   /// matching the expectations of the properties for this operation. This is
@@ -1030,10 +1242,14 @@ public:
   setPropertiesFromAttribute(Attribute attr,
                              function_ref<InFlightDiagnostic()> emitError);
 
+  /// 从现有的 other properties object 复制 properties。这两个对象必须是同一类型。
+  ///
   /// Copy properties from an existing other properties object. The two objects
   /// must be the same type.
   void copyProperties(OpaqueProperties rhs);
 
+  /// 计算 op properties 的哈希值（如果有）。
+  ///
   /// Compute a hash for the op properties (if any).
   llvm::hash_code hashProperties();
 
