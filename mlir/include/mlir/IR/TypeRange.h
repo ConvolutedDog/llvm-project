@@ -24,6 +24,10 @@ namespace mlir {
 //===----------------------------------------------------------------------===//
 // TypeRange
 
+/// 此类提供了对各种不同 ranges 的 value types 的抽象。在许多情况下，这可以避免显式
+/// 实现 SmallVector/std::vector 的需要。此类应该用在a more derived type (e.g. 
+/// ArrayRef) or a template range parameter 的地方。
+///
 /// This class provides an abstraction over the various different ranges of
 /// value types. In many cases, this prevents the need to explicitly materialize
 /// a SmallVector/std::vector. This class should be used in places that are not

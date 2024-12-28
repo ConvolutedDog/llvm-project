@@ -268,6 +268,8 @@ inline bool operator!=(OpState lhs, OpState rhs) {
 
 raw_ostream &operator<<(raw_ostream &os, OpFoldResult ofr);
 
+/// 此类表示折叠操作的 a single result。
+///
 /// This class represents a single result from folding an operation.
 class OpFoldResult : public PointerUnion<Attribute, Value> {
   using PointerUnion<Attribute, Value>::PointerUnion;

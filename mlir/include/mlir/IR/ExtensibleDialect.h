@@ -626,6 +626,9 @@ private:
 // Dynamic dialect
 //===----------------------------------------------------------------------===//
 
+/// 可以在运行时定义的方言。它可以在运行时使用新 operations, types, and attributes
+/// 进行扩展。
+///
 /// A dialect that can be defined at runtime. It can be extended with new
 /// operations, types, and attributes at runtime.
 class DynamicDialect : public SelfOwningTypeID, public ExtensibleDialect {

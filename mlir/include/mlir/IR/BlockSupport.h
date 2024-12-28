@@ -25,6 +25,8 @@ class Block;
 // BlockOperand
 //===----------------------------------------------------------------------===//
 
+/// A block operand 表示保存对 Block 的引用的 operand，例如 terminator operations。
+///
 /// A block operand represents an operand that holds a reference to a Block,
 /// e.g. for terminator operations.
 class BlockOperand : public IROperand<BlockOperand, Block *> {

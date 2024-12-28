@@ -72,6 +72,9 @@ constexpr auto size_impl(RangeT &&range)
 
 } // end namespace adl_detail
 
+/// 使用 `std::begin` 和通过参数相关查找 (ADL) 找到的函数将开始迭代器
+/// 返回到 \p range。
+///
 /// Returns the begin iterator to \p range using `std::begin` and
 /// function found through Argument-Dependent Lookup (ADL).
 template <typename RangeT>

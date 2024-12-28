@@ -232,6 +232,8 @@ void Operation::replaceUsesOfWith(Value from, Value to) {
       operand.set(to);
 }
 
+/// 用 'operands' 中提供的 operands 替换此 operation 的当前 operands。
+///
 /// Replace the current operands of this operation with the ones provided in
 /// 'operands'.
 void Operation::setOperands(ValueRange operands) {
@@ -240,6 +242,9 @@ void Operation::setOperands(ValueRange operands) {
   assert(operands.empty() && "setting operands without an operand storage");
 }
 
+/// 用 'operands' 中提供的 operands 替换从 'start' 开始到 'start' + 'length' 结
+/// 束的 operands。'operands' 可能小于或大于 'start'+'length' 指向的范围。
+///
 /// Replace the operands beginning at 'start' and ending at 'start' + 'length'
 /// with the ones provided in 'operands'. 'operands' may be smaller or larger
 /// than the range pointed to by 'start'+'length'.
@@ -252,6 +257,8 @@ void Operation::setOperands(unsigned start, unsigned length,
   assert(operands.empty() && "setting operands without an operand storage");
 }
 
+/// 将给定的 operands 插入到给定 'index' 处的 operand list 中。
+///
 /// Insert the given operands into the operand list at the given 'index'.
 void Operation::insertOperands(unsigned index, ValueRange operands) {
   if (LLVM_LIKELY(hasOperandStorage))
@@ -302,6 +309,11 @@ DictionaryAttr Operation::getAttrDictionary() {
   return attrs;
 }
 
+/// 在此 operation 中设置 attributes from a dictionary。
+///
+/// Set the attributes from a dictionary on this operation.
+/// These methods are expensive: if the dictionnary only contains discardable
+/// attributes, `setDiscardableAttrs` is more efficient.
 void Operation::setAttrs(DictionaryAttr newAttrs) {
   assert(newAttrs && "expected valid attribute dictionary");
   if (getPropertiesStorageSize()) {
@@ -338,14 +350,30 @@ void Operation::setAttrs(ArrayRef<NamedAttribute> newAttrs) {
   attrs = DictionaryAttr::get(getContext(), newAttrs);
 }
 
+/// 通过 name 访问 an inherent attribute：如果不存在具有此 name 的 an inherent
+/// attribute，则返回 an empty optional。
+///
+/// Access an inherent attribute by name: returns an empty optional if there
+/// is no inherent attribute with this name.
+///
+/// This method is available as a transient facility in the migration process
+/// to use Properties instead.
 std::optional<Attribute> Operation::getInherentAttr(StringRef name) {
   return getName().getInherentAttr(this, name);
 }
 
+/// 按 name 设置 an inherent attribute。
 void Operation::setInherentAttr(StringAttr name, Attribute value) {
   getName().setInherentAttr(this, name, value);
 }
 
+/// 返回被转换为 an attribute 的 properties。
+/// 这很昂贵，并且在处理 unregistered operation 时非常有用。如果不存在任何
+/// properties，则返回 an empty attribute。
+///
+/// Return the properties converted to an attribute.
+/// This is expensive, and mostly useful when dealing with unregistered
+/// operation. Returns an empty attribute if no properties are present.
 Attribute Operation::getPropertiesAsAttribute() {
   std::optional<RegisteredOperationName> info = getRegisteredInfo();
   if (LLVM_UNLIKELY(!info))
@@ -628,9 +656,14 @@ static void checkFoldResultTypes(Operation *op,
 }
 #endif // NDEBUG
 
+/// 尝试使用 Op 已注册的 foldHook 折叠此 Op。
+///
 /// Attempt to fold this operation using the Op's registered foldHook.
 LogicalResult Operation::fold(ArrayRef<Attribute> operands,
                               SmallVectorImpl<OpFoldResult> &results) {
+  // 如果我们有一个与此匹配的 registered operation definition，则使用它来尝试常量
+  // 折叠操作。
+  //
   // If we have a registered operation definition matching this one, use it to
   // try to constant fold the operation.
   if (succeeded(name.foldHook(this, operands, results))) {
@@ -709,6 +742,11 @@ Operation *Operation::cloneWithoutRegions() {
   return cloneWithoutRegions(mapper);
 }
 
+/// 创建此 Operation 的深层副本，使用提供的 map 来 remapping 使用 Operation
+/// 之外的 values 的任何 operands（如果不存在任何条目，则保留它们）。将对 cloned
+/// sub-Operation 的引用替换为 the corresponding operation that is copied，
+/// 并将这些 mappings 添加到 map 中。
+///
 /// Create a deep copy of this operation, remapping any operands that use
 /// values outside of the operation using the map that is provided (leaving
 /// them alone if no entry is present).  Replaces references to cloned

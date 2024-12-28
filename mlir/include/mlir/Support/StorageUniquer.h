@@ -128,6 +128,8 @@ using has_impltype_hash_t = decltype(ImplTy::hashKey(std::declval<T>()));
 /// using an appropriate unique `TypeID` for the storage class.
 class StorageUniquer {
 public:
+  /// 此类充当所有 storage classes 必须从其派生的 base storage。
+  ///
   /// This class acts as the base storage that all storage classes must derived
   /// from.
   class alignas(8) BaseStorage {
@@ -135,10 +137,15 @@ public:
     BaseStorage() = default;
   };
 
+  /// 这是一个实用程序分配器，用于为派生的 types 的实例分配内存。
+  ///
   /// This is a utility allocator used to allocate memory for instances of
   /// derived types.
   class StorageAllocator {
   public:
+    /// 将指定的 array of elements 复制到由我们的碰撞指针分配器管理的内存中。这假
+    /// 设元素都是 POD。
+    ///
     /// Copy the specified array of elements into memory managed by our bump
     /// pointer allocator.  This assumes the elements are all PODs.
     template <typename T>
@@ -150,6 +157,8 @@ public:
       return ArrayRef<T>(result, elements.size());
     }
 
+    /// 将提供的字符串 `str` 复制到由我们的碰撞指针分配器管理的内存中。
+    ///
     /// Copy the provided string into memory managed by our bump pointer
     /// allocator.
     StringRef copyInto(StringRef str) {
@@ -162,23 +171,31 @@ public:
       return StringRef(result, str.size());
     }
 
+    /// 分配所提供 type 的实例。
+    ///
     /// Allocate an instance of the provided type.
     template <typename T>
     T *allocate() {
       return allocator.Allocate<T>();
     }
 
+    /// 分配 `size` 字节的 `alignment` 对齐内存。
+    ///
     /// Allocate 'size' bytes of 'alignment' aligned memory.
     void *allocate(size_t size, size_t alignment) {
       return allocator.Allocate(size, alignment);
     }
 
+    /// 如果此分配器分配了提供的对象指针，则返回 true。
+    ///
     /// Returns true if this allocator allocated the provided object pointer.
     bool allocated(const void *ptr) {
       return allocator.identifyObject(ptr).has_value();
     }
 
   private:
+    /// type storage objects 的 raw allocator。
+    ///
     /// The raw allocator for type storage objects.
     llvm::BumpPtrAllocator allocator;
   };

@@ -225,6 +225,10 @@ public:
       free(it.second);
   }
 
+  /// 使用给定的 set of template types 构造一个 InterfaceMap。为方便起见，由于对象
+  /// trait lists 可能包含其他 non-interface types，因此并非所有 types 都需要是接
+  /// 口。不表示 interfaces 的 provided types 不会添加到 the interface map 中。
+  ///
   /// Construct an InterfaceMap with the given set of template types. For
   /// convenience given that object trait lists may contain other non-interface
   /// types, not all of the types need to be interfaces. The provided types that

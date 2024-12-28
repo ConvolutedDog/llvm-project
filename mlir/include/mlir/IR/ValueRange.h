@@ -37,22 +37,31 @@ class MutableOperandRangeRange;
 //===----------------------------------------------------------------------===//
 // OperandRange
 
+/// 此类实现 Operation 类的 operand iterators。
+///
 /// This class implements the operand iterators for the Operation class.
 class OperandRange final : public llvm::detail::indexed_accessor_range_base<
                                OperandRange, OpOperand *, Value, Value, Value> {
 public:
   using RangeBaseT::RangeBaseT;
 
+  /// 返回该 range 内的 values 的 types。
+  ///
   /// Returns the types of the values within this range.
   using type_iterator = ValueTypeIterator<iterator>;
   using type_range = ValueTypeRange<OperandRange>;
   type_range getTypes() const;
   type_range getType() const;
 
+  /// 返回此 range 的第一个 element 的 operand index。The range 不能为空。
+  ///
   /// Return the operand index of the first element of this range. The range
   /// must not be empty.
   unsigned getBeginOperandIndex() const;
 
+  /// 使用给定的 elements attribute 将 this range 拆分为 a set of contiguous
+  /// subranges，该属性包含 the sizes of the sub ranges。
+  ///
   /// Split this range into a set of contiguous subranges using the given
   /// elements attribute, which contains the sizes of the sub ranges.
   OperandRangeRange split(DenseI32ArrayAttr segmentSizes) const;
@@ -369,6 +378,10 @@ private:
 //===----------------------------------------------------------------------===//
 // ValueRange
 
+/// 此类提供了对 Values 上 different types of ranges 的抽象。在许多情况下，这可以
+/// 避免显式实现 SmallVector/std::vector。此类应该用在不适合 a more derived type
+/// (e.g. ArrayRef) 或 a template range parameter 的地方。
+///
 /// This class provides an abstraction over the different types of ranges over
 /// Values. In many cases, this prevents the need to explicitly materialize a
 /// SmallVector/std::vector. This class should be used in places that are not

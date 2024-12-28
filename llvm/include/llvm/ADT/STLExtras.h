@@ -424,6 +424,21 @@ template <typename ContainerTy> auto reverse(ContainerTy &&C) {
                       std::make_reverse_iterator(adl_begin(C)));
 }
 
+/// 迭代器适配器，用于过滤给定内部迭代器的元素。
+///
+/// The predicate parameter（`PredicateT`）应为可调用对象，该对象接受包装的迭代器
+/// 的引用类型并返回布尔值。在增加或减少迭代器时，它将在每个元素上调用 `PredicateT`
+/// 并跳过返回 false 的任何位置的元素。
+///
+/// \code
+///   int A[] = { 1, 2, 3, 4 };
+///   auto R = make_filter_range(A, [](int N) { return N % 2 == 1; });
+///   // R contains { 1, 3 }.
+/// \endcode
+///
+/// 注意：`filter_iterator_base` 实现了对前向迭代的支持。`filter_iterator_impl`
+/// 的存在是为了提供对双向迭代的支持，取决于包装的迭代器是否支持它。
+///
 /// An iterator adaptor that filters the elements of given inner iterators.
 ///
 /// The predicate parameter should be a callable object that accepts the wrapped
@@ -490,6 +505,8 @@ public:
   }
 };
 
+/// `filter_iterator_base` 的专门化仅用于 forward iteration。
+///
 /// Specialization of filter_iterator_base for forward iteration only.
 template <typename WrappedIteratorT, typename PredicateT,
           typename IterTag = std::forward_iterator_tag>
@@ -553,6 +570,9 @@ template <typename IterT> struct fwd_or_bidi_tag {
 
 } // namespace detail
 
+/// 根据底层迭代器的类别，将 `filter_iterator` 定义为 `filter_iterator_impl`
+/// 的适当专业化。
+///
 /// Defines filter_iterator to a suitable specialization of
 /// filter_iterator_impl, based on the underlying iterator's category.
 template <typename WrappedIteratorT, typename PredicateT>
@@ -1225,6 +1245,13 @@ protected:
 };
 
 namespace detail {
+/// 该类表示 a range of indexed_accessor_iterators 的基类。它支持许多不同的范围
+/// 功能，例如 drop_front/slice 等。派生出的 range classes 必须实现以下静态方法：
+///   * ReferenceT dereference_iterator(const BaseT &base, ptrdiff_t index)
+///     - 取消指向给定 base object 的 `index` 处的迭代器。
+///   * BaseT offset_base(const BaseT &base, ptrdiff_t index)
+///     - 返回与提供的 base 偏移 `index` 元素的 new base。
+///
 /// The class represents the base of a range of indexed_accessor_iterators. It
 /// provides support for many different range functionalities, e.g.
 /// drop_front/slice/etc.. Derived range classes must implement the following
@@ -1241,6 +1268,8 @@ class indexed_accessor_range_base {
 public:
   using RangeBaseT = indexed_accessor_range_base;
 
+  /// 此 range 的 an iterator element。
+  ///
   /// An iterator element of this range.
   class iterator : public indexed_accessor_iterator<iterator, BaseT, T,
                                                     PointerT, ReferenceT> {

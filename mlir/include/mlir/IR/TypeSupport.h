@@ -205,9 +205,14 @@ using TypeStorageAllocator = StorageUniquer::StorageAllocator;
 // TypeUniquer
 //===----------------------------------------------------------------------===//
 namespace detail {
+/// 一个实用程序类，用于获取或创建 MLIRContext 中 types 的唯一实例。此类管理所
+/// 有类型的创建和唯一化。
+///
 /// A utility class to get, or create, unique instances of types within an
 /// MLIRContext. This class manages all creation and uniquing of types.
 struct TypeUniquer {
+  /// 获取类型 T 的唯一实例。
+  ///
   /// Get an uniqued instance of a type T.
   template <typename T, typename... Args>
   static T get(MLIRContext *ctx, Args &&...args) {
@@ -215,6 +220,9 @@ struct TypeUniquer {
                                      std::forward<Args>(args)...);
   }
 
+  /// 获取参数类型 T 的唯一实例。一般不鼓励使用此方法，而建议使用
+  /// 'get<T, Args>(ctx, args)'。
+  ///
   /// Get an uniqued instance of a parametric type T.
   /// The use of this method is in general discouraged in favor of
   /// 'get<T, Args>(ctx, args)'.
@@ -254,6 +262,8 @@ struct TypeUniquer {
     return ctx->getTypeUniquer().get<typename T::ImplType>(typeID);
   }
 
+  /// 在提供的上下文中更改给定 type 实例的可变组件。
+  ///
   /// Change the mutable component of the given type instance in the provided
   /// context.
   template <typename T, typename... Args>

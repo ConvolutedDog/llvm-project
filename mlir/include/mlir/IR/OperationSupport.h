@@ -254,6 +254,22 @@ public:
   /// std::nullopt otherwise.
   std::optional<RegisteredOperationName> getRegisteredInfo() const;
 
+  /// 此钩子为该 operation 实现了一个 a generalized folder。operation 可以实现
+  /// 该钩子以提供由 Builder::createOrFold API 和 canonicalization pass 应用的
+  /// simplifications rules。
+  ///
+  /// 这是一个有意限制的接口 - 此钩子的实现只能对 operation 执行以下更改：
+  ///
+  /// 1. 它们可以不改变 IR，而只保留 operation，并返回 failure。
+  /// 2. 它们可以就地 mutate the operation，而不改变 IR 中的任何其他内容。在这种
+  ///    情况下，返回 success。
+  /// 3. 它们可以返回可以代替 operation 使用的 a list of existing values。在这
+  ///    种情况下，fill in the results list 并返回 success。The caller 将删除
+  ///    该 operation 并使用这些结果。
+  ///
+  /// 这允许表达一些简单的 in-place canonicalizations (e.g. 
+  /// "x+0 -> x", "min(x,y,x,z) -> min(x,y,z)", "x+y-x -> y") 以及广义常量折叠。
+  ///
   /// This hook implements a generalized folder for this operation. Operations
   /// can implement this to provide simplifications rules that are applied by
   /// the Builder::createOrFold API and the canonicalization pass.
@@ -403,6 +419,9 @@ public:
     return !isRegistered() || hasInterface(interfaceID);
   }
 
+  /// 通过 name 查找 an inherent attribute，此方法不推荐使用，并且将来可能会被
+  /// 删除。
+  ///
   /// Lookup an inherent attribute by name, this method isn't recommended
   /// and may be removed in the future.
   std::optional<Attribute> getInherentAttr(Operation *op,
@@ -1097,6 +1116,9 @@ public:
 //===----------------------------------------------------------------------===//
 
 namespace detail {
+/// 此类负责处理 operation operands 的管理。Operands 存储在 a trailing array
+/// 或 a dynamically resizable vector 中。
+///
 /// This class handles the management of operation operands. Operands are
 /// stored either in a trailing array, or a dynamically resizable vector.
 class alignas(8) OperandStorage {
@@ -1105,41 +1127,64 @@ public:
                  ValueRange values);
   ~OperandStorage();
 
+  /// 将 storage 中包含的 operands 替换为 `values` 中提供的 operands。
+  ///
   /// Replace the operands contained in the storage with the ones provided in
   /// 'values'.
   void setOperands(Operation *owner, ValueRange values);
 
+  /// 用参数 `operands` 中提供的 operands 替换从 'start' 开始到 'start' + 'length'
+  /// 结束的 operands。'operands' 可能小于或大于 'start'+'length' 指向的范围。
+  ///
   /// Replace the operands beginning at 'start' and ending at 'start' + 'length'
   /// with the ones provided in 'operands'. 'operands' may be smaller or larger
   /// than the range pointed to by 'start'+'length'.
   void setOperands(Operation *owner, unsigned start, unsigned length,
                    ValueRange operands);
 
+  /// 擦除 storage 中保存的给定范围内的 operands。
+  ///
   /// Erase the operands held by the storage within the given range.
   void eraseOperands(unsigned start, unsigned length);
 
+  /// 擦除 storage 中在 `eraseIndices` 中设置了相应位的 operands。
+  ///
   /// Erase the operands held by the storage that have their corresponding bit
   /// set in `eraseIndices`.
   void eraseOperands(const BitVector &eraseIndices);
 
+  /// 返回 storage 中保存的 operands。
+  ///
   /// Get the operation operands held by the storage.
   MutableArrayRef<OpOperand> getOperands() { return {operandStorage, size()}; }
 
+  /// 返回 storage 中保存的 operands 的数量。
+  ///
   /// Return the number of operands held in the storage.
   unsigned size() { return numOperands; }
 
 private:
+  /// 将 storage 大小调整为给定大小。返回包含 the new operands 的 array。
+  ///
   /// Resize the storage to the given size. Returns the array containing the new
   /// operands.
   MutableArrayRef<OpOperand> resize(Operation *owner, unsigned newSize);
 
+  /// storage 可容纳的 operands 的 total capacity number。
+  ///
   /// The total capacity number of operands that the storage can hold.
   unsigned capacity : 31;
+  /// 一个标志，指示 the operand storage 是否是动态分配的，而不是内联到所属操作中。
+  ///
   /// A flag indicating if the operand storage was dynamically allocated, as
   /// opposed to inlined into the owning operation.
   unsigned isStorageDynamic : 1;
+  /// storage 内的 operands 的数量。
+  ///
   /// The number of operands within the storage.
   unsigned numOperands;
+  /// 指向 the operand storage 的指针。
+  ///
   /// A pointer to the operand storage.
   OpOperand *operandStorage;
 };

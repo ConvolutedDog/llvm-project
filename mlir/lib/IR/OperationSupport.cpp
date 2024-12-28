@@ -262,11 +262,16 @@ void detail::OperandStorage::setOperands(Operation *owner, ValueRange values) {
     storageOperands[i].set(values[i]);
 }
 
+/// 用参数 `operands` 中提供的 operands 替换从 'start' 开始到 'start' + 'length'
+/// 结束的 operands。'operands' 可能小于或大于 'start'+'length' 指向的范围。
+///
 /// Replace the operands beginning at 'start' and ending at 'start' + 'length'
 /// with the ones provided in 'operands'. 'operands' may be smaller or larger
 /// than the range pointed to by 'start'+'length'.
 void detail::OperandStorage::setOperands(Operation *owner, unsigned start,
                                          unsigned length, ValueRange operands) {
+  // 如果 the new size 相同，可以进行就地更新。
+  ///
   // If the new size is the same, we can update inplace.
   unsigned newSize = operands.size();
   if (newSize == length) {
@@ -275,6 +280,8 @@ void detail::OperandStorage::setOperands(Operation *owner, unsigned start,
       storageOperands[start + i].set(operands[i]);
     return;
   }
+  // 如果 the new size 更大，则删除多余的 operands 并将其余 operands 就地设置。
+  //
   // If the new size is greater, remove the extra operands and set the rest
   // inplace.
   if (newSize < length) {
@@ -282,19 +289,27 @@ void detail::OperandStorage::setOperands(Operation *owner, unsigned start,
     setOperands(owner, start, newSize, operands);
     return;
   }
+  // 否则 the new size 更大，所以我们需要增加 storage。
+  //
   // Otherwise, the new size is greater so we need to grow the storage.
   auto storageOperands = resize(owner, size() + (newSize - length));
 
+  // 将 operands 向右移动，为新的 operands 腾出空间。
+  //
   // Shift operands to the right to make space for the new operands.
   unsigned rotateSize = storageOperands.size() - (start + length);
   auto rbegin = storageOperands.rbegin();
   std::rotate(rbegin, std::next(rbegin, newSize - length), rbegin + rotateSize);
 
+  // 就地更新 operands。
+  //
   // Update the operands inplace.
   for (unsigned i = 0, e = operands.size(); i != e; ++i)
     storageOperands[start + i].set(operands[i]);
 }
 
+/// 擦除从位置 `start` 开始到位置 `start`+`length` 结束的 operand。
+///
 /// Erase an operand held by the storage.
 void detail::OperandStorage::eraseOperands(unsigned start, unsigned length) {
   MutableArrayRef<OpOperand> operands = getOperands();
@@ -310,6 +325,8 @@ void detail::OperandStorage::eraseOperands(unsigned start, unsigned length) {
     operands[numOperands + i].~OpOperand();
 }
 
+/// 擦除在 `eraseIndices` 中设置了相应位的 operands，并将它们从 operand
+/// list 中删除。
 void detail::OperandStorage::eraseOperands(const BitVector &eraseIndices) {
   MutableArrayRef<OpOperand> operands = getOperands();
   assert(eraseIndices.size() == operands.size());
@@ -389,6 +406,10 @@ MutableArrayRef<OpOperand> detail::OperandStorage::resize(Operation *owner,
 //===----------------------------------------------------------------------===//
 // OperandRange
 
+/// 返回此 range 的第一个 element 的 operand index。The range 不能为空。
+///
+/// Return the operand index of the first element of this range. The range
+/// must not be empty.
 unsigned OperandRange::getBeginOperandIndex() const {
   assert(!empty() && "range must not be empty");
   return base->getOperandNumber();

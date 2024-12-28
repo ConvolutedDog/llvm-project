@@ -30,18 +30,29 @@ class ValueUserIterator;
 //===----------------------------------------------------------------------===//
 
 namespace detail {
+/// IROperand 的 base，并提供用于 operand use management 的所有 non-templated
+/// facilities。
+///
 /// This class is the base for IROperand, and provides all of the non-templated
 /// facilities for operand use management.
 class IROperandBase {
 public:
+  /// 返回此 operand 的 owner，该 operand 归属于哪个 operation。
+  ///
   /// Return the owner of this operand.
   Operation *getOwner() const { return owner; }
 
+  /// 返回我们所引用的值的 `use-list of the value` 中的下一个 operand。
+  /// 这通常仅应由 SSA 机制的内部实现细节使用。
+  ///
   /// Return the next operand on the use-list of the value we are referring to.
   /// This should generally only be used by the internal implementation details
   /// of the SSA machinery.
   IROperandBase *getNextOperandUsingThisValue() { return nextUse; }
 
+  /// 通过将 `back` 地址设置为 self 并将 nextUse 设置为 nullptr 来初始化 use-def
+  /// chain。
+  ///
   /// Initialize the use-def chain by setting the back address to self and
   /// nextUse to nullptr.
   void initChainWithUse(IROperandBase **self) {
@@ -50,6 +61,8 @@ public:
     nextUse = nullptr;
   }
 
+  /// 将当前 node 链接到下一个 node。
+  ///
   /// Link the current node to next.
   void linkTo(IROperandBase *next) {
     nextUse = next;
@@ -76,6 +89,8 @@ protected:
 
   ~IROperandBase() { removeFromCurrent(); }
 
+  /// 删除该 operand 的 use。
+  ///
   /// Remove this use of the operand.
   void drop() {
     removeFromCurrent();
@@ -83,6 +98,8 @@ protected:
     back = nullptr;
   }
 
+  /// 从当前 `use list` 中删除当前 operand。
+  ///
   /// Remove this operand from the current use list.
   void removeFromCurrent() {
     if (!back)
@@ -92,6 +109,8 @@ protected:
       nextUse->back = back;
   }
 
+  /// 将此 operand 插入给定的 `use list` 中。
+  ///
   /// Insert this operand into the given use list.
   template <typename UseListT>
   void insertInto(UseListT *useList) {
@@ -102,13 +121,19 @@ protected:
     useList->firstUse = this;
   }
 
+  /// `use-chain` 中的下一个 operand。
+  ///
   /// The next operand in the use-chain.
   IROperandBase *nextUse = nullptr;
 
+  /// 这指向 `use-chain` 中的前一个 link。
+  ///
   /// This points to the previous link in the use-chain.
   IROperandBase **back = nullptr;
 
 private:
+  /// 该 operand 的 owner，是一个 Operation 对象。
+  ///
   /// The operation owner of this operand.
   Operation *const owner;
 };
@@ -118,6 +143,12 @@ private:
 // IROperand
 //===----------------------------------------------------------------------===//
 
+/// 对 a value 的引用，适合用作 operation 的 operand。
+/// `IRValueT` 是用于跟踪 values 的 root type。Derived operand types 应提供以下
+/// 内容：
+///  * static IRObjectWithUseList *getUseList(IRValueT value);
+///    - 提供附加到给定 value 的 the use list。
+///
 /// A reference to a value, suitable for use as an operand of an operation.
 /// IRValueT is the root type to use for values this tracks. Derived operand
 /// types are expected to provide the following:
@@ -156,9 +187,13 @@ public:
     return !(*this == other);
   }
 
+  /// 返回此 operand 当前使用的 the current value。
+  ///
   /// Return the current value being used by this operand.
   IRValueT get() const { return value; }
 
+  /// 设置此 operand 正在使用的当前 value。
+  ///
   /// Set the current value being used by this operand.
   void set(IRValueT newValue) {
     // It isn't worth optimizing for the case of switching operands on a single
@@ -168,9 +203,13 @@ public:
     insertIntoCurrent();
   }
 
+  /// 如果此 operand 包含给定 value，则返回 true。
+  ///
   /// Returns true if this operand contains the given value.
   bool is(IRValueT other) const { return value == other; }
 
+  /// 删除该 operand 的 use。
+  ///
   /// \brief Remove this use of the operand.
   void drop() {
     detail::IROperandBase::drop();
@@ -178,10 +217,14 @@ public:
   }
 
 private:
+  /// 用作此 operand 的 value。在 `dropAllUses` 状态下，此值可以为空。
+  ///
   /// The value used as this operand. This can be null when in a 'dropAllUses'
   /// state.
   IRValueT value = {};
 
+  /// 将此 operand 插入给定的 use list 中。
+  ///
   /// Insert this operand into the given use list.
   void insertIntoCurrent() { insertInto(DerivedT::getUseList(value)); }
 };

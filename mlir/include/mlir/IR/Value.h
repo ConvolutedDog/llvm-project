@@ -262,18 +262,26 @@ inline raw_ostream &operator<<(raw_ostream &os, Value value) {
 // OpOperand
 //===----------------------------------------------------------------------===//
 
+/// 此类表示 an operand of an operation。此类的实例包含对特定 `Value` 的引用。
+///
 /// This class represents an operand of an operation. Instances of this class
 /// contain a reference to a specific `Value`.
 class OpOperand : public IROperand<OpOperand, Value> {
 public:
+  /// 提供附加到 the given `value` 的 the use list。
+  ///
   /// Provide the use list that is attached to the given value.
   static IRObjectWithUseList<OpOperand> *getUseList(Value value) {
     return value.getImpl();
   }
 
+  /// 返回 Operation 的 the OpOperand list 中的哪个操作数。
+  ///
   /// Return which operand this is in the OpOperand list of the Operation.
   unsigned getOperandNumber();
 
+  /// 设置此 operand 正在使用的 current value。
+  ///
   /// Set the current value being used by this operand.
   void assign(Value value) { set(value); }
 
